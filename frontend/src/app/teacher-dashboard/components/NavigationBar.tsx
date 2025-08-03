@@ -15,7 +15,19 @@ const NavigationBar: React.FC = () => {
     <div className="layout-content-container flex flex-col w-80">
       <div className="flex h-full min-h-[700px] flex-col justify-between bg-white p-4">
         <div className="flex flex-col gap-4">
-          <h1 className="text-[#111418] text-base font-medium leading-normal">ReadRight</h1>
+          {/* LexiLearn Logo */}
+          <div className="flex items-center gap-3 px-2 py-3">
+            <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-[#4798ea] to-[#3a7bc8] rounded-xl">
+              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-[#111418] text-lg font-bold leading-tight">LexiLearn</h1>
+              <p className="text-[#637588] text-xs font-medium">Reading & Learning</p>
+            </div>
+          </div>
+          
           <div className="flex flex-col gap-2">
             <Link href="/teacher-dashboard">
               <div className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-colors ${
