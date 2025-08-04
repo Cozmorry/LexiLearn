@@ -26,10 +26,10 @@ router.get('/profile', protect, async (req, res) => {
 router.put('/profile', [
   protect,
   body('name').optional().trim().isLength({ min: 2, max: 50 }).withMessage('Name must be between 2 and 50 characters'),
-  body('preferences.theme').optional().isIn(['light', 'dark']).withMessage('Theme must be light or dark'),
-  body('preferences.notifications').optional().isBoolean().withMessage('Notifications must be boolean'),
-  body('preferences.accessibility.fontSize').optional().isIn(['small', 'medium', 'large']).withMessage('Font size must be small, medium, or large'),
-  body('preferences.accessibility.highContrast').optional().isBoolean().withMessage('High contrast must be boolean')
+  body('settings.theme').optional().isIn(['light', 'dark', 'auto']).withMessage('Theme must be light, dark, or auto'),
+  body('settings.notifications').optional().isBoolean().withMessage('Notifications must be boolean'),
+  body('settings.accessibility.fontSize').optional().isIn(['small', 'medium', 'large']).withMessage('Font size must be small, medium, or large'),
+  body('settings.accessibility.highContrast').optional().isBoolean().withMessage('High contrast must be boolean')
 ], async (req, res) => {
   try {
     // Check for validation errors
@@ -38,11 +38,17 @@ router.put('/profile', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, preferences } = req.body;
+    const { name, settings } = req.body;
     const updateData = {};
 
     if (name) updateData.name = name;
-    if (preferences) updateData.preferences = { ...req.user.preferences, ...preferences };
+    const fallbackSettings = {
+      theme: 'light',
+      notifications: { email: true, push: false },
+      accessibility: { highContrast: false }
+    };
+    const userSettings = req.user.settings || req.user.preferences || fallbackSettings;
+    if (settings) updateData.settings = { ...userSettings, ...settings };
 
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
@@ -102,7 +108,7 @@ router.post('/students', [
       grade,
       role: 'student',
       teacherId: req.user._id,
-      email: `${name.toLowerCase().replace(/\s+/g, '.')}@lexilearn.student` // Temporary email
+      email: req.body.email,
     });
 
     res.status(201).json({
@@ -251,6 +257,88 @@ router.get('/', protect, authorize('admin'), async (req, res) => {
     });
   } catch (error) {
     console.error('Get users error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   PUT /api/users/settings
+// @desc    Update user settings
+// @access  Private
+router.put('/settings', [
+  protect,
+  body('theme').optional().isIn(['light', 'dark', 'auto']).withMessage('Theme must be light, dark, or auto'),
+  body('notifications.email').optional().isBoolean().withMessage('Email notifications must be boolean'),
+  body('notifications.push').optional().isBoolean().withMessage('Push notifications must be boolean'),
+  body('accessibility.highContrast').optional().isBoolean().withMessage('High contrast must be boolean')
+], async (req, res) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { theme, notifications, accessibility } = req.body;
+    const updateData = {};
+
+    if (theme) updateData['settings.theme'] = theme;
+    if (notifications) {
+      if (notifications.email !== undefined) updateData['settings.notifications.email'] = notifications.email;
+      if (notifications.push !== undefined) updateData['settings.notifications.push'] = notifications.push;
+    }
+    if (accessibility) {
+      if (accessibility.highContrast !== undefined) updateData['settings.accessibility.highContrast'] = accessibility.highContrast;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    res.json({
+      success: true,
+      user: updatedUser.getPublicProfile()
+    });
+  } catch (error) {
+    console.error('Update settings error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// @route   PUT /api/users/change-password
+// @desc    Change user password
+// @access  Private
+router.put('/change-password', [
+  protect,
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
+], async (req, res) => {
+  try {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    // Verify current password
+    const isMatch = await req.user.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+
+    // Update password
+    req.user.password = newPassword;
+    await req.user.save();
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

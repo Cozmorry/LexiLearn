@@ -5,31 +5,14 @@ import { useRouter } from 'next/navigation';
 import NavigationBar from '../components/NavigationBar';
 import { authAPI, tokenUtils, userAPI } from '../../../services/api';
 
-interface User {
-  _id: string;
-  name: string;
-  email: string;
-  school?: string;
-  gradeLevel?: string;
-  subject?: string;
-  avatar?: string;
-  settings?: {
-    theme: 'light' | 'dark' | 'auto';
-    notifications: {
-      email: boolean;
-      push: boolean;
-    };
-    accessibility: {
-      highContrast: boolean;
-    };
-  };
+function isObject(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null;
 }
 
 const TeacherSettingsPage: React.FC = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -64,7 +47,6 @@ const TeacherSettingsPage: React.FC = () => {
     try {
       setLoading(true);
       const userData = await userAPI.getProfile();
-      setUser(userData);
       setFormData({
         name: userData.name || '',
         email: userData.email || '',
@@ -72,17 +54,23 @@ const TeacherSettingsPage: React.FC = () => {
         gradeLevel: userData.gradeLevel || '',
         subject: userData.subject || ''
       });
+      const fallbackSettings = {
+        theme: 'light',
+        notifications: { email: true, push: false },
+        accessibility: { highContrast: false }
+      };
+      const s = userData.settings || userData.preferences || fallbackSettings;
       setSettings({
-        theme: userData.settings?.theme || 'light',
+        theme: s.theme || 'light',
         notifications: {
-          email: userData.settings?.notifications?.email ?? true,
-          push: userData.settings?.notifications?.push ?? false
+          email: s.notifications?.email ?? true,
+          push: s.notifications?.push ?? false
         },
         accessibility: {
-          highContrast: userData.settings?.accessibility?.highContrast ?? false
+          highContrast: s.accessibility?.highContrast ?? false
         }
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error loading user data:', error);
       setMessage({ type: 'error', text: 'Failed to load user data' });
     } finally {
@@ -98,14 +86,22 @@ const TeacherSettingsPage: React.FC = () => {
     }));
   };
 
-  const handleSettingsChange = (category: string, key: string, value: any) => {
-    setSettings(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category as keyof typeof prev],
-        [key]: value
-      }
-    }));
+  const handleSettingsChange = (
+    category: string,
+    key: string,
+    value: unknown
+  ) => {
+    setSettings(prev => {
+      const cat = (prev as Record<string, unknown>)[category];
+      const catObj = isObject(cat) ? cat : {};
+      return {
+        ...prev,
+        [category]: {
+          ...catObj,
+          [key]: value
+        }
+      };
+    });
   };
 
   const handleSaveProfile = async () => {
@@ -114,7 +110,7 @@ const TeacherSettingsPage: React.FC = () => {
       await userAPI.updateProfile(formData);
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setTimeout(() => setMessage(null), 3000);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error updating profile:', error);
       setMessage({ type: 'error', text: 'Failed to update profile' });
     } finally {
@@ -128,7 +124,7 @@ const TeacherSettingsPage: React.FC = () => {
       await userAPI.updateSettings(settings);
       setMessage({ type: 'success', text: 'Settings saved successfully!' });
       setTimeout(() => setMessage(null), 3000);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error saving settings:', error);
       setMessage({ type: 'error', text: 'Failed to save settings' });
     } finally {
@@ -149,7 +145,7 @@ const TeacherSettingsPage: React.FC = () => {
       setShowPasswordModal(false);
       setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setTimeout(() => setMessage(null), 3000);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error changing password:', error);
       setMessage({ type: 'error', text: 'Failed to change password' });
     } finally {
@@ -164,7 +160,7 @@ const TeacherSettingsPage: React.FC = () => {
       tokenUtils.removeToken();
       localStorage.removeItem('user');
       router.push('/');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Logout error:', error);
       // Still clear local data even if API call fails
       tokenUtils.removeToken();
@@ -174,13 +170,16 @@ const TeacherSettingsPage: React.FC = () => {
   };
 
   // Toggle Component
-  const Toggle = ({ enabled, onChange, disabled = false }: { enabled: boolean; onChange: (enabled: boolean) => void; disabled?: boolean }) => (
+  const Toggle = ({ enabled, onChange, disabled = false, label }: { enabled: boolean; onChange: (enabled: boolean) => void; disabled?: boolean; label?: string }) => (
     <button
       onClick={() => !disabled && onChange(!enabled)}
       disabled={disabled}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:ring-offset-2 ${
         enabled ? 'bg-[#4798ea]' : 'bg-gray-300'
       } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      aria-label={label || (enabled ? 'Disable' : 'Enable')}
+      title={label || (enabled ? 'Disable' : 'Enable')}
+      type="button"
     >
       <span
         className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -192,7 +191,7 @@ const TeacherSettingsPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden" style={{ fontFamily: '"Plus Jakarta Sans", "Noto Sans", sans-serif' }}>
+      <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden font-sans">
         <div className="layout-container flex h-full grow flex-col">
           <div className="gap-1 px-6 flex flex-1 justify-center py-5">
             <NavigationBar />
@@ -211,7 +210,7 @@ const TeacherSettingsPage: React.FC = () => {
   }
 
   return (
-    <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden" style={{ fontFamily: '"Plus Jakarta Sans", "Noto Sans", sans-serif' }}>
+    <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden font-sans">
       <div className="layout-container flex h-full grow flex-col">
         <div className="gap-1 px-6 flex flex-1 justify-center py-5">
           <NavigationBar />
@@ -356,6 +355,7 @@ const TeacherSettingsPage: React.FC = () => {
                       <Toggle
                         enabled={settings.notifications.email}
                         onChange={(enabled) => handleSettingsChange('notifications', 'email', enabled)}
+                        label="Email Notifications"
                       />
                     </div>
                     <div className="flex items-center justify-between">
@@ -366,6 +366,7 @@ const TeacherSettingsPage: React.FC = () => {
                       <Toggle
                         enabled={settings.notifications.push}
                         onChange={(enabled) => handleSettingsChange('notifications', 'push', enabled)}
+                        label="Push Notifications"
                       />
                     </div>
                   </div>
@@ -382,6 +383,7 @@ const TeacherSettingsPage: React.FC = () => {
                     <Toggle
                       enabled={settings.accessibility.highContrast}
                       onChange={(enabled) => handleSettingsChange('accessibility', 'highContrast', enabled)}
+                      label="High Contrast Mode"
                     />
                   </div>
                 </div>

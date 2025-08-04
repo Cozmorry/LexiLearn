@@ -204,10 +204,9 @@ export default function TeacherSignup() {
                       aria-label="Select grade level"
                     >
                       <option value="">Select grade level</option>
-                      <option value="K-2">K-2</option>
-                      <option value="3-5">3-5</option>
-                      <option value="6-8">6-8</option>
-                      <option value="9-12">9-12</option>
+                      <option value="1st">1st</option>
+                      <option value="2nd">2nd</option>
+                      <option value="3rd">3rd</option>
                     </select>
                   </div>
 

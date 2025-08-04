@@ -105,6 +105,26 @@ export const userAPI = {
     return handleResponse(response);
   },
 
+  // Update user settings
+  updateSettings: async (settingsData) => {
+    const response = await fetch(`${API_BASE_URL}/users/settings`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(settingsData),
+    });
+    return handleResponse(response);
+  },
+
+  // Change user password
+  changePassword: async (currentPassword, newPassword) => {
+    const response = await fetch(`${API_BASE_URL}/users/change-password`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    return handleResponse(response);
+  },
+
   // Get teacher's students
   getStudents: async () => {
     const response = await fetch(`${API_BASE_URL}/users/students`, {
@@ -278,6 +298,14 @@ export const progressAPI = {
   // Get module statistics (teachers only)
   getModuleStats: async (moduleId) => {
     const response = await fetch(`${API_BASE_URL}/progress/module/${moduleId}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Get student summary (for teacher dashboard/reports)
+  getStudentSummary: async () => {
+    const response = await fetch(`${API_BASE_URL}/progress/summary`, {
       headers: getAuthHeaders(),
     });
     return handleResponse(response);

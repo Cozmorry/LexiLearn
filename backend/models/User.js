@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
+    required: function() { return this.role !== 'student'; },
     minlength: [6, 'Password must be at least 6 characters long']
   },
   role: {
@@ -69,7 +69,7 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  preferences: {
+  settings: {
     theme: {
       type: String,
       enum: ['light', 'dark', 'auto'],

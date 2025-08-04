@@ -8,6 +8,13 @@ const router = express.Router();
 
 // Generate JWT Token
 const generateToken = (id) => {
+  console.log('JWT_SECRET:', process.env.JWT_SECRET);
+  console.log('JWT_EXPIRE:', process.env.JWT_EXPIRE);
+  
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET is not defined in environment variables');
+  }
+  
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE
   });
