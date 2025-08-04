@@ -43,23 +43,66 @@ const TeacherSettingsPage: React.FC = () => {
     loadUserData();
   }, []);
 
+  // Apply theme changes to the document
+  useEffect(() => {
+    const applyTheme = (theme: string) => {
+      const root = document.documentElement;
+      
+      // Remove all theme classes
+      root.classList.remove('light', 'dark');
+      
+      if (theme === 'dark') {
+        root.classList.add('dark');
+        root.style.colorScheme = 'dark';
+      } else if (theme === 'light') {
+        root.classList.add('light');
+        root.style.colorScheme = 'light';
+      } else if (theme === 'auto') {
+        // Auto theme - use system preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (prefersDark) {
+          root.classList.add('dark');
+          root.style.colorScheme = 'dark';
+        } else {
+          root.classList.add('light');
+          root.style.colorScheme = 'light';
+        }
+      }
+    };
+
+    applyTheme(settings.theme);
+
+    // Listen for system theme changes when in auto mode
+    if (settings.theme === 'auto') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = () => applyTheme('auto');
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
+    }
+  }, [settings.theme]);
+
   const loadUserData = async () => {
     try {
       setLoading(true);
       const userData = await userAPI.getProfile();
+      
+      // Handle both direct user data and nested user object
+      const user = userData.user || userData;
+      
       setFormData({
-        name: userData.name || '',
-        email: userData.email || '',
-        school: userData.school || '',
-        gradeLevel: userData.gradeLevel || '',
-        subject: userData.subject || ''
+        name: user.name || '',
+        email: user.email || '',
+        school: user.school || '',
+        gradeLevel: user.gradeLevel || '',
+        subject: user.subject || ''
       });
+      
       const fallbackSettings = {
         theme: 'light',
         notifications: { email: true, push: false },
         accessibility: { highContrast: false }
       };
-      const s = userData.settings || userData.preferences || fallbackSettings;
+      const s = user.settings || user.preferences || fallbackSettings;
       setSettings({
         theme: s.theme || 'light',
         notifications: {
@@ -92,12 +135,17 @@ const TeacherSettingsPage: React.FC = () => {
     value: unknown
   ) => {
     setSettings(prev => {
-      const cat = (prev as Record<string, unknown>)[category];
-      const catObj = isObject(cat) ? cat : {};
+      if (category === 'theme') {
+        return {
+          ...prev,
+          theme: value as 'light' | 'dark' | 'auto'
+        };
+      }
+      
       return {
         ...prev,
         [category]: {
-          ...catObj,
+          ...prev[category as keyof typeof prev],
           [key]: value
         }
       };
@@ -107,12 +155,17 @@ const TeacherSettingsPage: React.FC = () => {
   const handleSaveProfile = async () => {
     try {
       setSaving(true);
+      console.log('Sending profile data:', formData);
       await userAPI.updateProfile(formData);
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
+      
+      // Reload user data to ensure form shows the persisted data
+      await loadUserData();
+      
       setTimeout(() => setMessage(null), 3000);
     } catch (error: unknown) {
       console.error('Error updating profile:', error);
-      setMessage({ type: 'error', text: 'Failed to update profile' });
+      setMessage({ type: 'error', text: `Failed to update profile: ${error.message}` });
     } finally {
       setSaving(false);
     }
@@ -121,12 +174,13 @@ const TeacherSettingsPage: React.FC = () => {
   const handleSaveSettings = async () => {
     try {
       setSaving(true);
+      console.log('Sending settings data:', settings);
       await userAPI.updateSettings(settings);
       setMessage({ type: 'success', text: 'Settings saved successfully!' });
       setTimeout(() => setMessage(null), 3000);
     } catch (error: unknown) {
       console.error('Error saving settings:', error);
-      setMessage({ type: 'error', text: 'Failed to save settings' });
+      setMessage({ type: 'error', text: `Failed to save settings: ${error.message}` });
     } finally {
       setSaving(false);
     }
@@ -210,14 +264,14 @@ const TeacherSettingsPage: React.FC = () => {
   }
 
   return (
-    <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden font-sans">
+    <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden font-sans" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
       <div className="layout-container flex h-full grow flex-col">
         <div className="gap-1 px-6 flex flex-1 justify-center py-5">
           <NavigationBar />
 
           <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
             <div className="flex flex-wrap justify-between gap-3 p-4">
-              <p className="text-[#111418] tracking-light text-[32px] font-bold leading-tight min-w-72">Settings</p>
+              <p className="text-[#111418] tracking-light text-[32px] font-bold leading-tight min-w-72" style={{ color: 'var(--text-primary)' }}>Settings</p>
             </div>
 
             {/* Message Display */}
@@ -230,10 +284,10 @@ const TeacherSettingsPage: React.FC = () => {
             )}
 
             {/* Profile Section */}
-            <div className="bg-white rounded-xl border border-[#dce0e5] mx-4 mb-6">
-              <div className="px-6 py-4 border-b border-[#dce0e5]">
-                <h2 className="text-[#111418] text-lg font-semibold">Profile Information</h2>
-                <p className="text-[#637588] text-sm">Update your personal information</p>
+            <div className="bg-white rounded-xl border border-[#dce0e5] mx-4 mb-6" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+              <div className="px-6 py-4 border-b border-[#dce0e5]" style={{ borderColor: 'var(--card-border)' }}>
+                <h2 className="text-[#111418] text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Profile Information</h2>
+                <p className="text-[#637588] text-sm" style={{ color: 'var(--text-secondary)' }}>Update your personal information</p>
               </div>
               <div className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -272,17 +326,17 @@ const TeacherSettingsPage: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-[#111418] text-sm font-medium mb-2">Grade Level</label>
-                                         <select
-                       name="gradeLevel"
-                       value={formData.gradeLevel}
-                       onChange={handleInputChange}
-                       className="w-full border border-[#dce0e5] rounded-xl px-4 py-3 text-[#111418] focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all"
-                       aria-label="Select grade level"
-                     >
+                    <select
+                      name="gradeLevel"
+                      value={formData.gradeLevel}
+                      onChange={handleInputChange}
+                      className="w-full border border-[#dce0e5] rounded-xl px-4 py-3 text-[#111418] focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all"
+                      aria-label="Select grade level"
+                    >
                       <option value="">Select grade level</option>
-                      <option value="Elementary">Elementary</option>
-                      <option value="Middle School">Middle School</option>
-                      <option value="High School">High School</option>
+                      <option value="1">Grade 1</option>
+                      <option value="2">Grade 2</option>
+                      <option value="3">Grade 3</option>
                     </select>
                   </div>
                 </div>
@@ -316,41 +370,68 @@ const TeacherSettingsPage: React.FC = () => {
             </div>
 
             {/* Preferences Section */}
-            <div className="bg-white rounded-xl border border-[#dce0e5] mx-4 mb-6">
-              <div className="px-6 py-4 border-b border-[#dce0e5]">
-                <h2 className="text-[#111418] text-lg font-semibold">Preferences</h2>
-                <p className="text-[#637588] text-sm">Customize your experience</p>
+            <div className="bg-white rounded-xl border border-[#dce0e5] mx-4 mb-6" style={{ backgroundColor: 'var(--card-bg)', borderColor: 'var(--card-border)' }}>
+              <div className="px-6 py-4 border-b border-[#dce0e5]" style={{ borderColor: 'var(--card-border)' }}>
+                <h2 className="text-[#111418] text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>Preferences</h2>
+                <p className="text-[#637588] text-sm" style={{ color: 'var(--text-secondary)' }}>Customize your experience</p>
               </div>
               <div className="p-6 space-y-6">
                 {/* Theme */}
                 <div>
-                  <label className="block text-[#111418] text-sm font-medium mb-3">Theme</label>
+                  <label className="block text-[#111418] text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>Theme</label>
                   <div className="flex gap-3">
-                                         {(['light', 'dark', 'auto'] as const).map((theme) => (
-                       <button
-                         key={theme}
-                         onClick={() => handleSettingsChange('theme', 'theme', theme)}
-                         className={`px-4 py-2 rounded-lg border transition-colors ${
-                           settings.theme === theme
-                             ? 'border-[#4798ea] bg-[#4798ea] text-white'
-                             : 'border-[#dce0e5] text-[#111418] hover:bg-gray-50'
-                         }`}
-                         aria-label={`Select ${theme} theme`}
-                       >
-                         {theme.charAt(0).toUpperCase() + theme.slice(1)}
-                       </button>
-                     ))}
+                    {(['light', 'dark', 'auto'] as const).map((theme) => (
+                      <button
+                        key={theme}
+                        onClick={() => {
+                          handleSettingsChange('theme', '', theme);
+                          // Apply theme immediately for better UX
+                          const root = document.documentElement;
+                          root.classList.remove('light', 'dark');
+                          
+                          if (theme === 'dark') {
+                            root.classList.add('dark');
+                            root.style.colorScheme = 'dark';
+                          } else if (theme === 'light') {
+                            root.classList.add('light');
+                            root.style.colorScheme = 'light';
+                          } else if (theme === 'auto') {
+                            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                            if (prefersDark) {
+                              root.classList.add('dark');
+                              root.style.colorScheme = 'dark';
+                            } else {
+                              root.classList.add('light');
+                              root.style.colorScheme = 'light';
+                            }
+                          }
+                        }}
+                        className={`px-4 py-2 rounded-lg border transition-colors ${
+                          settings.theme === theme
+                            ? 'border-[#4798ea] bg-[#4798ea] text-white'
+                            : 'border-[#dce0e5] text-[#111418] hover:bg-gray-50'
+                        }`}
+                        style={{
+                          borderColor: settings.theme === theme ? 'var(--accent)' : 'var(--card-border)',
+                          backgroundColor: settings.theme === theme ? 'var(--accent)' : 'transparent',
+                          color: settings.theme === theme ? 'white' : 'var(--text-primary)'
+                        }}
+                        aria-label={`Select ${theme} theme`}
+                      >
+                        {theme.charAt(0).toUpperCase() + theme.slice(1)}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
                 {/* Notifications */}
                 <div className="space-y-4">
-                  <h3 className="text-[#111418] text-sm font-medium">Notifications</h3>
+                  <h3 className="text-[#111418] text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Notifications</h3>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[#111418] text-sm font-medium">Email Notifications</p>
-                        <p className="text-[#637588] text-xs">Receive updates via email</p>
+                        <p className="text-[#111418] text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Email Notifications</p>
+                        <p className="text-[#637588] text-xs" style={{ color: 'var(--text-secondary)' }}>Receive updates via email</p>
                       </div>
                       <Toggle
                         enabled={settings.notifications.email}
@@ -360,8 +441,8 @@ const TeacherSettingsPage: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[#111418] text-sm font-medium">Push Notifications</p>
-                        <p className="text-[#637588] text-xs">Receive browser notifications</p>
+                        <p className="text-[#111418] text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Push Notifications</p>
+                        <p className="text-[#637588] text-xs" style={{ color: 'var(--text-secondary)' }}>Receive browser notifications</p>
                       </div>
                       <Toggle
                         enabled={settings.notifications.push}
@@ -374,11 +455,11 @@ const TeacherSettingsPage: React.FC = () => {
 
                 {/* Accessibility */}
                 <div className="space-y-4">
-                  <h3 className="text-[#111418] text-sm font-medium">Accessibility</h3>
+                  <h3 className="text-[#111418] text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Accessibility</h3>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-[#111418] text-sm font-medium">High Contrast Mode</p>
-                      <p className="text-[#637588] text-xs">Increase contrast for better visibility</p>
+                      <p className="text-[#111418] text-sm font-medium" style={{ color: 'var(--text-primary)' }}>High Contrast Mode</p>
+                      <p className="text-[#637588] text-xs" style={{ color: 'var(--text-secondary)' }}>Increase contrast for better visibility</p>
                     </div>
                     <Toggle
                       enabled={settings.accessibility.highContrast}
@@ -392,6 +473,7 @@ const TeacherSettingsPage: React.FC = () => {
                   onClick={handleSaveSettings}
                   disabled={saving}
                   className="px-6 py-2 bg-[#4798ea] text-white rounded-xl hover:bg-[#3a7bc8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: 'var(--accent)', '--tw-bg-opacity': '1' } as React.CSSProperties}
                 >
                   {saving ? 'Saving...' : 'Save Preferences'}
                 </button>
@@ -479,11 +561,11 @@ const TeacherSettingsPage: React.FC = () => {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-[#111418]">Change Password</h2>
-                             <button
-                 onClick={() => setShowPasswordModal(false)}
-                 className="text-[#637588] hover:text-[#111418]"
-                 aria-label="Close password change modal"
-               >
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="text-[#637588] hover:text-[#111418]"
+                aria-label="Close password change modal"
+              >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -545,4 +627,4 @@ const TeacherSettingsPage: React.FC = () => {
   );
 };
 
-export default TeacherSettingsPage;
+export default TeacherSettingsPage; 

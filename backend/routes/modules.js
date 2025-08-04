@@ -1,9 +1,68 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const Module = require('../models/Module');
 const { protect, authorize, isTeacher } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, '../uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    if (file.fieldname === 'photos') {
+      if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed for photos'), false);
+      }
+    } else if (file.fieldname === 'videos') {
+      if (file.mimetype.startsWith('video/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only video files are allowed for videos'), false);
+      }
+    } else {
+      cb(new Error('Unexpected field'), false);
+    }
+  }
+});
+
+// Error handling middleware for multer
+const handleMulterError = (error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+    }
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ error: 'Too many files uploaded.' });
+    }
+    return res.status(400).json({ error: error.message });
+  }
+  if (error) {
+    return res.status(400).json({ error: error.message });
+  }
+  next();
+};
 
 // @route   GET /api/modules
 // @desc    Get all modules (filtered by user role)
@@ -75,13 +134,17 @@ router.get('/:id', protect, async (req, res) => {
 router.post('/', [
   protect,
   isTeacher,
+  upload.fields([
+    { name: 'photos', maxCount: 10 },
+    { name: 'videos', maxCount: 5 }
+  ]),
+  handleMulterError,
   body('title').trim().isLength({ min: 3, max: 100 }).withMessage('Title must be between 3 and 100 characters'),
-  body('description').trim().isLength({ min: 10, max: 500 }).withMessage('Description must be between 10 and 500 characters'),
-  body('category').isIn(['reading', 'spelling', 'comprehension', 'writing', 'vocabulary']).withMessage('Invalid category'),
-  body('difficulty').isIn(['beginner', 'intermediate', 'advanced']).withMessage('Invalid difficulty'),
-  body('gradeLevel').isIn(['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th']).withMessage('Invalid grade level'),
-  body('estimatedDuration').isInt({ min: 1 }).withMessage('Estimated duration must be a positive number'),
-  body('content').isArray({ min: 1 }).withMessage('Content is required')
+  body('description').trim().isLength({ min: 10, max: 1000 }).withMessage('Description must be between 10 and 1000 characters'),
+  body('category').isIn(['Reading', 'Writing', 'Grammar', 'Vocabulary', 'Comprehension', 'Phonics', 'Literature', 'Creative Writing']).withMessage('Invalid category'),
+  body('difficulty').isIn(['Beginner', 'Intermediate', 'Advanced']).withMessage('Invalid difficulty'),
+  body('gradeLevel').isIn(['1', '2', '3']).withMessage('Invalid grade level'),
+  body('estimatedTime').isInt({ min: 1 }).withMessage('Estimated time must be a positive number')
 ], async (req, res) => {
   try {
     // Check for validation errors
@@ -90,9 +153,54 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
+    // Process uploaded files
+    const photos = [];
+    const videos = [];
+
+    if (req.files) {
+      if (req.files.photos) {
+        req.files.photos.forEach(file => {
+          photos.push({
+            filename: file.filename,
+            originalName: file.originalname,
+            path: file.path,
+            mimetype: file.mimetype,
+            size: file.size
+          });
+        });
+      }
+
+      if (req.files.videos) {
+        req.files.videos.forEach(file => {
+          videos.push({
+            filename: file.filename,
+            originalName: file.originalname,
+            path: file.path,
+            mimetype: file.mimetype,
+            size: file.size
+          });
+        });
+      }
+    }
+
+    // Parse content from JSON string if provided
+    let content = [];
+    if (req.body.content) {
+      try {
+        content = JSON.parse(req.body.content);
+      } catch (error) {
+        return res.status(400).json({ error: 'Invalid content format' });
+      }
+    }
+
     const moduleData = {
       ...req.body,
-      createdBy: req.user._id
+      photos,
+      videos,
+      content,
+      createdBy: req.user._id,
+      exercises: [], // Initialize empty exercises array
+      estimatedDuration: req.body.estimatedTime // Map estimatedTime to estimatedDuration
     };
 
     const module = await Module.create(moduleData);
@@ -257,6 +365,18 @@ router.delete('/:id/assign', [
   } catch (error) {
     console.error('Remove module assignment error:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Serve uploaded files
+router.get('/uploads/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(__dirname, '../uploads', filename);
+  
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json({ error: 'File not found' });
   }
 });
 

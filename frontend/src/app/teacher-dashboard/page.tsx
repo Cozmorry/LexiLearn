@@ -16,11 +16,20 @@ interface Student {
 
 interface Progress {
   _id: string;
-  studentId: string;
-  moduleId: string;
+  studentId: {
+    _id: string;
+    name: string;
+    grade: string;
+  };
+  moduleId: {
+    _id: string;
+    title: string;
+    category: string;
+  };
   score: number;
-  completedAt: string;
+  lastActivity: string;
   timeSpent: number;
+  status: string;
 }
 
 export default function TeacherDashboardPage() {
@@ -42,8 +51,11 @@ export default function TeacherDashboardPage() {
         progressAPI.getStudentSummary()
       ]);
 
+
+
+
       setStudents(studentsResponse.students || []);
-      setProgress(progressResponse.progress || []);
+      setProgress(progressResponse.recentActivity || []);
       
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -54,14 +66,14 @@ export default function TeacherDashboardPage() {
 
   // Calculate real statistics
   const totalStudents = students.length;
-  const totalModulesCompleted = progress.length;
+  const totalModulesCompleted = progress.filter(p => p.status === 'completed').length;
   const averageScore = progress.length > 0 
-    ? Math.round(progress.reduce((sum, p) => sum + p.score, 0) / progress.length)
+    ? Math.round(progress.reduce((sum, p) => sum + (p.score || 0), 0) / progress.length)
     : 0;
 
   // Get recent activity (last 5 progress entries)
   const recentActivity = progress
-    .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())
+    .sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime())
     .slice(0, 5);
 
   // Get student name by ID
@@ -98,6 +110,12 @@ export default function TeacherDashboardPage() {
           <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
             <div className="flex flex-wrap justify-between gap-3 p-4">
               <p className="text-[#111418] tracking-light text-[32px] font-bold leading-tight min-w-72">Teacher Command Center</p>
+              <Link 
+                href="/teacher-dashboard/add-module"
+                className="px-6 py-2 bg-[#4798ea] text-white rounded-lg hover:bg-[#3a7bc8] transition-colors"
+              >
+                + Create Module
+              </Link>
             </div>
             
             {/* Summary Statistics Cards */}
@@ -191,28 +209,28 @@ export default function TeacherDashboardPage() {
                       {recentActivity.map((activity) => (
                         <tr key={activity._id} className="border-t border-t-[#dce0e5]">
                           <td className="h-[72px] px-4 py-2 text-[#111418] text-sm font-normal leading-normal">
-                            {getStudentName(activity.studentId)}
+                            {activity.studentId?.name || 'Unknown Student'}
                           </td>
                           <td className="h-[72px] px-4 py-2 text-[#4798ea] text-sm font-normal leading-normal">
-                            <Link href="#" className="hover:underline">Module {activity.moduleId}</Link>
+                            <Link href="#" className="hover:underline">{activity.moduleId?.title || 'Unknown Module'}</Link>
                           </td>
                           <td className="h-[72px] px-4 py-2 text-[#637588] text-sm font-normal leading-normal">
                             <div className="flex items-center gap-2">
-                              <span>{activity.score}</span>
+                              <span>{activity.score || 0}</span>
                               <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
                                 <div 
                                   className={`h-full rounded-full ${
-                                    activity.score >= 90 ? 'bg-green-500' :
-                                    activity.score >= 80 ? 'bg-yellow-500' :
+                                    (activity.score || 0) >= 90 ? 'bg-green-500' :
+                                    (activity.score || 0) >= 80 ? 'bg-yellow-500' :
                                     'bg-red-500'
                                   }`}
-                                  style={{ width: `${activity.score}%` }}
+                                  style={{ width: `${activity.score || 0}%` }}
                                 ></div>
                               </div>
                             </div>
                           </td>
                           <td className="h-[72px] px-4 py-2 text-[#637588] text-sm font-normal leading-normal">
-                            {new Date(activity.completedAt).toLocaleDateString()}
+                            {new Date(activity.lastActivity).toLocaleDateString()}
                           </td>
                         </tr>
                       ))}

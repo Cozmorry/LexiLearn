@@ -119,7 +119,7 @@ const AddStudentPage: React.FC = () => {
                       placeholder="Enter student's full name"
                       value={formData.name}
                       onChange={handleInputChange}
-                      className="w-full h-12 px-4 rounded-xl border border-[#dde0e4] bg-white focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200 placeholder:text-[#637588] text-[#111418]"
+                      className="w-full h-12 px-4 rounded-xl border border-[#dde0e4] bg-white focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200 placeholder:text-gray-500 text-[#111418]"
                       required
                     />
                   </div>
@@ -134,7 +134,7 @@ const AddStudentPage: React.FC = () => {
                       placeholder="Enter student's email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full h-12 px-4 rounded-xl border border-[#dde0e4] bg-white focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200 placeholder:text-[#637588] text-[#111418]"
+                      className="w-full h-12 px-4 rounded-xl border border-[#dde0e4] bg-white focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200 placeholder:text-gray-500 text-[#111418]"
                     />
                   </div>
 
@@ -168,7 +168,7 @@ const AddStudentPage: React.FC = () => {
                         placeholder="Secret code will be generated automatically"
                         value={formData.secretCode}
                         onChange={handleInputChange}
-                        className="flex-1 h-12 px-4 rounded-xl border border-[#dde0e4] bg-white focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200 placeholder:text-[#637588] text-[#111418] font-mono"
+                        className="flex-1 h-12 px-4 rounded-xl border border-[#dde0e4] bg-white focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200 placeholder:text-gray-500 text-[#111418] font-mono"
                         readOnly
                       />
                       <button

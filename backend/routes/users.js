@@ -26,22 +26,36 @@ router.get('/profile', protect, async (req, res) => {
 router.put('/profile', [
   protect,
   body('name').optional().trim().isLength({ min: 2, max: 50 }).withMessage('Name must be between 2 and 50 characters'),
+  body('email').optional().isEmail().withMessage('Please enter a valid email'),
+  body('school').optional().trim().isLength({ min: 2, max: 200 }).withMessage('School name must be between 2 and 200 characters'),
+  body('gradeLevel').optional().isIn(['1', '2', '3']).withMessage('Grade level must be 1, 2, or 3'),
+  body('subject').optional().trim().isLength({ min: 1, max: 100 }).withMessage('Subject must be between 1 and 100 characters'),
   body('settings.theme').optional().isIn(['light', 'dark', 'auto']).withMessage('Theme must be light, dark, or auto'),
   body('settings.notifications').optional().isBoolean().withMessage('Notifications must be boolean'),
   body('settings.accessibility.fontSize').optional().isIn(['small', 'medium', 'large']).withMessage('Font size must be small, medium, or large'),
   body('settings.accessibility.highContrast').optional().isBoolean().withMessage('High contrast must be boolean')
 ], async (req, res) => {
   try {
+    console.log('Received profile update request:', req.body);
+    
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, settings } = req.body;
+    const { name, email, school, gradeLevel, subject, settings } = req.body;
     const updateData = {};
 
     if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (school) updateData.school = school;
+    if (gradeLevel) updateData.gradeLevel = gradeLevel;
+    if (subject) updateData.subject = subject;
+    
+    console.log('Update data:', updateData);
+    
     const fallbackSettings = {
       theme: 'light',
       notifications: { email: true, push: false },
@@ -53,7 +67,7 @@ router.put('/profile', [
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
       updateData,
-      { new: true, runValidators: true }
+      { new: true, runValidators: false }
     );
 
     res.json({
@@ -339,6 +353,24 @@ router.put('/change-password', [
     });
   } catch (error) {
     console.error('Change password error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// TEMPORARY: Backfill secretCode for all students missing it
+router.post('/students/backfill-secret-codes', async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const students = await User.find({ role: 'student', $or: [ { secretCode: { $exists: false } }, { secretCode: null } ] });
+    let updated = 0;
+    for (const student of students) {
+      student.secretCode = student.generateSecretCode();
+      await student.save();
+      updated++;
+    }
+    res.json({ success: true, updated });
+  } catch (error) {
+    console.error('Backfill secret codes error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

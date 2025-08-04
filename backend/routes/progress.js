@@ -52,6 +52,74 @@ router.get('/', protect, async (req, res) => {
   }
 });
 
+// @route   GET /api/progress/summary
+// @desc    Get progress summary for teacher's students
+// @access  Private (Teachers only)
+router.get('/summary', protect, isTeacher, async (req, res) => {
+  try {
+    // Get all students for this teacher
+    const students = await require('../models/User').findStudentsByTeacher(req.user._id);
+    const studentIds = students.map(s => s._id);
+    // Get progress summary for all students
+    let progressSummary = [];
+    if (studentIds.length > 0) {
+      progressSummary = await Progress.aggregate([
+        { $match: { studentId: { $in: studentIds } } },
+        { $group: {
+          _id: null,
+          totalStudents: { $addToSet: '$studentId' },
+          totalModules: { $sum: { $cond: [{ $ne: ['$moduleId', null] }, 1, 0] } },
+          completedModules: { $sum: { $cond: [{ $and: [{ $ne: ['$moduleId', null] }, { $eq: ['$status', 'completed'] }] }, 1, 0] } },
+          totalScore: { $sum: { $ifNull: ['$score', 0] } },
+          totalTimeSpent: { $sum: { $ifNull: ['$timeSpent', 0] } }
+        } },
+        { $project: {
+          _id: 0,
+          totalStudents: { $size: '$totalStudents' },
+          totalModules: 1,
+          completedModules: 1,
+          averageScore: {
+            $cond: [
+              { $gt: ['$totalModules', 0] },
+              { $divide: ['$totalScore', '$totalModules'] },
+              0
+            ]
+          },
+          averageTimeSpent: {
+            $cond: [
+              { $gt: ['$totalModules', 0] },
+              { $divide: ['$totalTimeSpent', '$totalModules'] },
+              0
+            ]
+          }
+        } }
+      ]);
+    }
+    // Get recent activity
+    const recentActivity = await Progress.find({ studentId: { $in: studentIds } })
+      .populate('studentId', 'name grade')
+      .populate('moduleId', 'title category')
+      .sort({ lastActivity: -1 })
+      .limit(10);
+
+    res.json({
+      success: true,
+      summary: progressSummary[0] || {
+        totalStudents: 0,
+        totalModules: 0,
+        completedModules: 0,
+        averageScore: 0,
+        averageTimeSpent: 0
+      },
+      recentActivity
+    });
+  } catch (error) {
+    console.error('Get progress summary error:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+});
+
 // @route   GET /api/progress/:id
 // @desc    Get specific progress record
 // @access  Private
@@ -214,78 +282,6 @@ router.put('/:id', [
   }
 });
 
-// @route   GET /api/progress/summary
-// @desc    Get progress summary for teacher's students
-// @access  Private (Teachers only)
-router.get('/summary', protect, isTeacher, async (req, res) => {
-  try {
-    // Get all students for this teacher
-    const students = await require('../models/User').findStudentsByTeacher(req.user._id);
-    const studentIds = students.map(s => s._id);
-
-    // Get progress summary for all students
-    const progressSummary = await Progress.aggregate([
-      { $match: { studentId: { $in: studentIds } } },
-      {
-        $group: {
-          _id: null,
-          totalStudents: { $addToSet: '$studentId' },
-          totalModules: { $sum: 1 },
-          completedModules: {
-            $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
-          },
-          totalScore: { $sum: { $ifNull: ['$score', 0] } },
-          totalTimeSpent: { $sum: { $ifNull: ['$timeSpent', 0] } }
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          totalStudents: { $size: '$totalStudents' },
-          totalModules: 1,
-          completedModules: 1,
-          averageScore: {
-            $cond: [
-              { $gt: ['$totalModules', 0] },
-              { $divide: ['$totalScore', '$totalModules'] },
-              0
-            ]
-          },
-          averageTimeSpent: {
-            $cond: [
-              { $gt: ['$totalModules', 0] },
-              { $divide: ['$totalTimeSpent', '$totalModules'] },
-              0
-            ]
-          }
-        }
-      }
-    ]);
-
-    // Get recent activity
-    const recentActivity = await Progress.find({ studentId: { $in: studentIds } })
-      .populate('studentId', 'name grade')
-      .populate('moduleId', 'title category')
-      .sort({ lastActivity: -1 })
-      .limit(10);
-
-    res.json({
-      success: true,
-      summary: progressSummary[0] || {
-        totalStudents: 0,
-        totalModules: 0,
-        completedModules: 0,
-        averageScore: 0,
-        averageTimeSpent: 0
-      },
-      recentActivity
-    });
-  } catch (error) {
-    console.error('Get progress summary error:', error);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
 // @route   GET /api/progress/student/:studentId
 // @desc    Get student's progress summary (Teachers only)
 // @access  Private (Teachers only)
@@ -310,7 +306,8 @@ router.get('/student/:studentId', protect, isTeacher, canAccessStudent, async (r
     });
   } catch (error) {
     console.error('Get student progress summary error:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
 
@@ -337,7 +334,8 @@ router.get('/module/:moduleId', protect, isTeacher, async (req, res) => {
     });
   } catch (error) {
     console.error('Get module statistics error:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
 

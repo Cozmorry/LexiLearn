@@ -56,6 +56,7 @@ const authorize = (...roles) => {
 
 // Middleware to check if user is teacher
 const isTeacher = (req, res, next) => {
+
   if (!req.user || req.user.role !== 'teacher') {
     return res.status(403).json({ 
       error: 'Access denied. Teacher access required.' 

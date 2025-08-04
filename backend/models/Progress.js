@@ -133,7 +133,7 @@ progressSchema.methods.addExerciseResult = function(exerciseData) {
 // Static method to get student progress summary
 progressSchema.statics.getStudentProgress = function(studentId) {
   return this.aggregate([
-    { $match: { studentId: mongoose.Types.ObjectId(studentId) } },
+    { $match: { studentId: new mongoose.Types.ObjectId(studentId) } },
     {
       $group: {
         _id: null,
@@ -151,7 +151,7 @@ progressSchema.statics.getStudentProgress = function(studentId) {
 // Static method to get module statistics
 progressSchema.statics.getModuleStats = function(moduleId) {
   return this.aggregate([
-    { $match: { moduleId: mongoose.Types.ObjectId(moduleId) } },
+    { $match: { moduleId: new mongoose.Types.ObjectId(moduleId) } },
     {
       $group: {
         _id: null,
@@ -167,7 +167,7 @@ progressSchema.statics.getModuleStats = function(moduleId) {
 // Static method to get quiz statistics
 progressSchema.statics.getQuizStats = function(quizId) {
   return this.aggregate([
-    { $match: { quizId: mongoose.Types.ObjectId(quizId) } },
+    { $match: { quizId: new mongoose.Types.ObjectId(quizId) } },
     {
       $group: {
         _id: null,

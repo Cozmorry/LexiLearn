@@ -1,0 +1,652 @@
+"use client";
+
+import React, { useState } from 'react';
+import NavigationBar from '../../components/NavigationBar';
+import Link from 'next/link';
+import { assignmentAPI } from '../../../../services/api';
+
+interface AssignmentFormData {
+  title: string;
+  description: string;
+  gradeLevel: string;
+  difficulty: string;
+  estimatedTime: number;
+  category: string;
+  objectives: string;
+  prerequisites: string;
+  materials: string;
+  instructions: string;
+  assessment: string;
+  dueDate: string;
+  content: Array<{
+    type: 'text' | 'interactive' | 'quiz';
+    data: string;
+    order: number;
+    quizData: {
+      question: string;
+      options: string[];
+      correctAnswer: number;
+      points: number;
+    };
+  }>;
+  photos: File[];
+  videos: File[];
+}
+
+export default function AddAssignmentPage() {
+  const [formData, setFormData] = useState<AssignmentFormData>({
+    title: '',
+    description: '',
+    gradeLevel: '',
+    difficulty: 'Beginner',
+    estimatedTime: 30,
+    category: '',
+    objectives: '',
+    prerequisites: '',
+    materials: '',
+    instructions: '',
+    assessment: '',
+    dueDate: '',
+    content: [],
+    photos: [],
+    videos: []
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'estimatedTime' ? parseInt(value) || 0 : value
+    }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'photos' | 'videos') => {
+    const files = Array.from(e.target.files || []);
+    setFormData(prev => ({
+      ...prev,
+      [type]: [...prev[type], ...files]
+    }));
+  };
+
+  const removeFile = (index: number, type: 'photos' | 'videos') => {
+    setFormData(prev => ({
+      ...prev,
+      [type]: prev[type].filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      // Create FormData for file uploads
+      const submitData = new FormData();
+      
+      // Add text fields
+      Object.keys(formData).forEach(key => {
+        if (key !== 'photos' && key !== 'videos' && key !== 'content') {
+          const value = formData[key as keyof Omit<AssignmentFormData, 'photos' | 'videos' | 'content'>];
+          submitData.append(key, String(value));
+        }
+      });
+
+      // Add content as JSON string
+      submitData.append('content', JSON.stringify(formData.content));
+
+      // Add files
+      formData.photos.forEach((file) => {
+        submitData.append(`photos`, file);
+      });
+
+      formData.videos.forEach((file) => {
+        submitData.append(`videos`, file);
+      });
+
+      await assignmentAPI.createAssignment(submitData);
+      
+      // Redirect to assignments list
+      window.location.href = '/teacher-dashboard/assignments';
+    } catch (error) {
+      console.error('Error creating assignment:', error);
+      setError('Failed to create assignment. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addContentItem = (type: 'text' | 'interactive' | 'quiz') => {
+    const newItem = {
+      type,
+      data: '',
+      order: formData.content.length,
+      quizData: type === 'quiz' ? {
+        question: '',
+        options: ['', '', '', ''],
+        correctAnswer: 0,
+        points: 10
+      } : undefined
+    };
+    setFormData(prev => ({
+      ...prev,
+      content: [...prev.content, newItem]
+    }));
+  };
+
+  const removeContentItem = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      content: prev.content.filter((_, i) => i !== index)
+    }));
+  };
+
+  return (
+    <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden" style={{ fontFamily: '"Plus Jakarta Sans", "Noto Sans", sans-serif' }}>
+      <div className="layout-container flex h-full grow flex-col">
+        <div className="gap-1 px-6 flex flex-1 justify-center py-5">
+          <NavigationBar />
+          <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-gray-900 text-2xl font-bold mb-2">Add New Assignment</h1>
+                <p className="text-[#637588]">Create a new assignment for your students</p>
+              </div>
+              <Link
+                href="/teacher-dashboard/assignments"
+                className="px-4 py-2 text-[#637588] hover:text-gray-900 transition-colors"
+              >
+                ← Back to Assignments
+              </Link>
+            </div>
+
+            {error && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-600">{error}</p>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Basic Information */}
+              <div className="bg-white rounded-xl border border-[#dce0e5] p-6">
+                <h2 className="text-gray-900 text-xl font-semibold mb-4">Basic Information</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="title" className="block text-gray-900 text-sm font-medium mb-2">
+                      Assignment Title *
+                    </label>
+                    <input
+                      id="title"
+                      name="title"
+                      type="text"
+                      required
+                      value={formData.title}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                      placeholder="Enter assignment title"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="category" className="block text-gray-900 text-sm font-medium mb-2">
+                      Category *
+                    </label>
+                    <select
+                      id="category"
+                      name="category"
+                      required
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent text-gray-900"
+                    >
+                      <option value="">Select category</option>
+                      <option value="Reading">Reading</option>
+                      <option value="Writing">Writing</option>
+                      <option value="Grammar">Grammar</option>
+                      <option value="Vocabulary">Vocabulary</option>
+                      <option value="Comprehension">Comprehension</option>
+                      <option value="Phonics">Phonics</option>
+                      <option value="Literature">Literature</option>
+                      <option value="Creative Writing">Creative Writing</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="gradeLevel" className="block text-gray-900 text-sm font-medium mb-2">
+                      Grade Level *
+                    </label>
+                    <select
+                      id="gradeLevel"
+                      name="gradeLevel"
+                      required
+                      value={formData.gradeLevel}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent text-gray-900"
+                    >
+                      <option value="">Select grade level</option>
+                      <option value="1">Grade 1</option>
+                      <option value="2">Grade 2</option>
+                      <option value="3">Grade 3</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="difficulty" className="block text-gray-900 text-sm font-medium mb-2">
+                      Difficulty Level
+                    </label>
+                    <select
+                      id="difficulty"
+                      name="difficulty"
+                      value={formData.difficulty}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent text-gray-900"
+                    >
+                      <option value="Beginner">Beginner</option>
+                      <option value="Intermediate">Intermediate</option>
+                      <option value="Advanced">Advanced</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="estimatedTime" className="block text-gray-900 text-sm font-medium mb-2">
+                      Estimated Time (minutes)
+                    </label>
+                    <input
+                      id="estimatedTime"
+                      name="estimatedTime"
+                      type="number"
+                      min="1"
+                      value={formData.estimatedTime}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                      placeholder="30"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="dueDate" className="block text-gray-900 text-sm font-medium mb-2">
+                      Due Date
+                    </label>
+                    <input
+                      id="dueDate"
+                      name="dueDate"
+                      type="date"
+                      value={formData.dueDate}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent text-gray-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <label htmlFor="description" className="block text-gray-900 text-sm font-medium mb-2">
+                    Description *
+                  </label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    required
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                    placeholder="Describe the assignment and what students need to accomplish..."
+                  />
+                </div>
+              </div>
+
+              {/* Assignment Details */}
+              <div className="bg-white rounded-xl border border-[#dce0e5] p-6">
+                <h2 className="text-gray-900 text-xl font-semibold mb-4">Assignment Details</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="objectives" className="block text-gray-900 text-sm font-medium mb-2">
+                      Learning Objectives
+                    </label>
+                    <textarea
+                      id="objectives"
+                      name="objectives"
+                      value={formData.objectives}
+                      onChange={handleInputChange}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                      placeholder="What should students learn from this assignment?"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="prerequisites" className="block text-gray-900 text-sm font-medium mb-2">
+                      Prerequisites
+                    </label>
+                    <textarea
+                      id="prerequisites"
+                      name="prerequisites"
+                      value={formData.prerequisites}
+                      onChange={handleInputChange}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                      placeholder="What knowledge or skills should students have before starting?"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="materials" className="block text-gray-900 text-sm font-medium mb-2">
+                      Required Materials
+                    </label>
+                    <textarea
+                      id="materials"
+                      name="materials"
+                      value={formData.materials}
+                      onChange={handleInputChange}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                      placeholder="List any materials or resources students will need"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="assessment" className="block text-gray-900 text-sm font-medium mb-2">
+                      Assessment Criteria
+                    </label>
+                    <textarea
+                      id="assessment"
+                      name="assessment"
+                      value={formData.assessment}
+                      onChange={handleInputChange}
+                      rows={3}
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                      placeholder="How will this assignment be graded?"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <label htmlFor="instructions" className="block text-gray-900 text-sm font-medium mb-2">
+                    Instructions *
+                  </label>
+                  <textarea
+                    id="instructions"
+                    name="instructions"
+                    required
+                    value={formData.instructions}
+                    onChange={handleInputChange}
+                    rows={6}
+                    className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                    placeholder="Provide detailed step-by-step instructions for students..."
+                  />
+                </div>
+              </div>
+
+              {/* Content Sections */}
+              <div className="bg-white rounded-xl border border-[#dce0e5] p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-gray-900 text-xl font-semibold">Content Sections</h2>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => addContentItem('text')}
+                      className="px-3 py-1 text-sm bg-[#4798ea] text-white rounded-lg hover:bg-[#3a7bc8] transition-colors"
+                    >
+                      Add Text
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => addContentItem('interactive')}
+                      className="px-3 py-1 text-sm bg-[#4798ea] text-white rounded-lg hover:bg-[#3a7bc8] transition-colors"
+                    >
+                      Add Interactive
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => addContentItem('quiz')}
+                      className="px-3 py-1 text-sm bg-[#4798ea] text-white rounded-lg hover:bg-[#3a7bc8] transition-colors"
+                    >
+                      Add Quiz
+                    </button>
+                  </div>
+                </div>
+
+                {formData.content.map((item, index) => (
+                  <div key={index} className="border border-[#dce0e5] rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-gray-900 font-medium capitalize">{item.type} Section {index + 1}</h3>
+                      <button
+                        type="button"
+                        onClick={() => removeContentItem(index)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        Remove
+                      </button>
+                    </div>
+
+                    {item.type === 'quiz' ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label htmlFor={`quiz-question-${index}`} className="block text-gray-900 text-sm font-medium mb-2">
+                            Question
+                          </label>
+                          <input
+                            id={`quiz-question-${index}`}
+                            type="text"
+                            value={item.quizData?.question || ''}
+                            onChange={(e) => {
+                              const newContent = [...formData.content];
+                              newContent[index] = { 
+                                ...newContent[index], 
+                                quizData: { 
+                                  ...newContent[index].quizData, 
+                                  question: e.target.value 
+                                } 
+                              };
+                              setFormData(prev => ({ ...prev, content: newContent }));
+                            }}
+                            className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                            placeholder="Enter the quiz question"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-gray-900 text-sm font-medium mb-2">
+                            Options
+                          </label>
+                          {[0, 1, 2, 3].map((optionIndex) => (
+                            <div key={optionIndex} className="flex items-center gap-2 mb-2">
+                              <input
+                                type="radio"
+                                name={`correct-answer-${index}`}
+                                id={`correct-answer-${index}-${optionIndex}`}
+                                checked={item.quizData?.correctAnswer === optionIndex}
+                                onChange={() => {
+                                  const newContent = [...formData.content];
+                                  newContent[index] = { 
+                                    ...newContent[index], 
+                                    quizData: { 
+                                      ...newContent[index].quizData, 
+                                      correctAnswer: optionIndex 
+                                    } 
+                                  };
+                                  setFormData(prev => ({ ...prev, content: newContent }));
+                                }}
+                                className="text-[#4798ea]"
+                                aria-label={`Mark option ${optionIndex + 1} as correct answer`}
+                              />
+                              <input
+                                type="text"
+                                id={`quiz-option-${index}-${optionIndex}`}
+                                value={item.quizData?.options?.[optionIndex] || ''}
+                                onChange={(e) => {
+                                  const newContent = [...formData.content];
+                                  const options = [...(newContent[index].quizData?.options || ['', '', '', ''])];
+                                  options[optionIndex] = e.target.value;
+                                  newContent[index] = { 
+                                    ...newContent[index], 
+                                    quizData: { 
+                                      ...newContent[index].quizData, 
+                                      options 
+                                    } 
+                                  };
+                                  setFormData(prev => ({ ...prev, content: newContent }));
+                                }}
+                                placeholder={`Option ${optionIndex + 1}`}
+                                className="flex-1 px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                aria-label={`Quiz option ${optionIndex + 1}`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div>
+                          <label htmlFor={`quiz-points-${index}`} className="block text-gray-900 text-sm font-medium mb-2">
+                            Points
+                          </label>
+                          <input
+                            id={`quiz-points-${index}`}
+                            type="number"
+                            value={item.quizData?.points || 10}
+                            onChange={(e) => {
+                              const newContent = [...formData.content];
+                              newContent[index] = { 
+                                ...newContent[index], 
+                                quizData: { 
+                                  ...newContent[index].quizData, 
+                                  points: parseInt(e.target.value) || 10 
+                                } 
+                              };
+                              setFormData(prev => ({ ...prev, content: newContent }));
+                            }}
+                            min="1"
+                            max="100"
+                            className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <label htmlFor={`content-data-${index}`} className="block text-gray-900 text-sm font-medium mb-2">
+                          Content
+                        </label>
+                        <textarea
+                          id={`content-data-${index}`}
+                          value={item.data}
+                          onChange={(e) => {
+                            const newContent = [...formData.content];
+                            newContent[index] = { ...newContent[index], data: e.target.value };
+                            setFormData(prev => ({ ...prev, content: newContent }));
+                          }}
+                          placeholder={item.type === 'text' ? 'Enter text content for this section...' : 'Enter interactive content for this section...'}
+                          rows={item.type === 'text' ? 4 : 8}
+                          className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                        />
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Media Uploads */}
+              <div className="bg-white rounded-xl border border-[#dce0e5] p-6">
+                <h2 className="text-[#111418] text-xl font-semibold mb-4">Media & Resources</h2>
+                
+                {/* Photos */}
+                <div className="mb-6">
+                  <label htmlFor="photos" className="block text-gray-900 text-sm font-medium mb-2">
+                    Photos (optional)
+                  </label>
+                  <p className="text-sm text-gray-700 mb-3 font-medium">
+                    Upload images to support your assignment. These can include diagrams, illustrations, or visual aids that help explain concepts.
+                  </p>
+                  <input
+                    id="photos"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'photos')}
+                    className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-[#4798ea] file:text-white hover:file:bg-[#3a7bc8] file:cursor-pointer text-gray-900"
+                  />
+                  {formData.photos.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-900 mb-2">Selected photos:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.photos.map((file, index) => (
+                          <div key={index} className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg border border-gray-200">
+                            <span className="text-sm text-gray-800 font-medium">{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(index, 'photos')}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Videos */}
+                <div>
+                  <label htmlFor="videos" className="block text-gray-900 text-sm font-medium mb-2">
+                    Videos (optional)
+                  </label>
+                  <p className="text-sm text-gray-700 mb-3 font-medium">
+                    Upload video content to enhance your assignment. Videos can include demonstrations, explanations, or interactive content.
+                  </p>
+                  <input
+                    id="videos"
+                    type="file"
+                    accept="video/*"
+                    multiple
+                    onChange={(e) => handleFileChange(e, 'videos')}
+                    className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-[#4798ea] file:text-white hover:file:bg-[#3a7bc8] file:cursor-pointer text-gray-900"
+                  />
+                  {formData.videos.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-900 mb-2">Selected videos:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.videos.map((file, index) => (
+                          <div key={index} className="flex items-center gap-2 bg-gray-100 px-3 py-2 rounded-lg border border-gray-200">
+                            <span className="text-sm text-gray-800 font-medium">{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeFile(index, 'videos')}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex justify-end gap-4">
+                <Link
+                  href="/teacher-dashboard/assignments"
+                  className="px-6 py-2 border border-[#dce0e5] text-[#637588] rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </Link>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-2 bg-[#4798ea] text-white rounded-lg hover:bg-[#3a7bc8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Creating Assignment...' : 'Create Assignment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+} 

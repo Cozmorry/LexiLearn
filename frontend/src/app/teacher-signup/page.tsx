@@ -92,7 +92,7 @@ export default function TeacherSignup() {
             {/* Signup Form Card */}
             <div className="bg-white rounded-2xl shadow-lg border border-[#dde0e4] p-8">
               <div className="text-center mb-8">
-                <h1 className="text-[#111418] text-3xl font-bold leading-tight mb-2">
+                <h1 className="text-gray-900 text-3xl font-bold leading-tight mb-2">
                   Teacher Signup
                 </h1>
                 <p className="text-[#637588] text-base">
@@ -115,9 +115,9 @@ export default function TeacherSignup() {
               <form onSubmit={handleTeacherSignup} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[#111418] text-sm font-medium mb-2">
-                      Full Name *
-                    </label>
+                                      <label className="block text-gray-900 text-sm font-medium mb-2">
+                    Full Name *
+                  </label>
                     <input
                       type="text"
                       name="name"
@@ -130,9 +130,9 @@ export default function TeacherSignup() {
                   </div>
 
                   <div>
-                    <label className="block text-[#111418] text-sm font-medium mb-2">
-                      Email Address *
-                    </label>
+                                      <label className="block text-gray-900 text-sm font-medium mb-2">
+                    Email Address *
+                  </label>
                     <input
                       type="email"
                       name="email"
@@ -147,9 +147,9 @@ export default function TeacherSignup() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[#111418] text-sm font-medium mb-2">
-                      Password *
-                    </label>
+                                      <label className="block text-gray-900 text-sm font-medium mb-2">
+                    Password *
+                  </label>
                     <input
                       type="password"
                       name="password"
@@ -162,9 +162,9 @@ export default function TeacherSignup() {
                   </div>
 
                   <div>
-                    <label className="block text-[#111418] text-sm font-medium mb-2">
-                      Confirm Password *
-                    </label>
+                                      <label className="block text-gray-900 text-sm font-medium mb-2">
+                    Confirm Password *
+                  </label>
                     <input
                       type="password"
                       name="confirmPassword"
@@ -179,7 +179,7 @@ export default function TeacherSignup() {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-[#111418] text-sm font-medium mb-2">
+                    <label className="block text-gray-900 text-sm font-medium mb-2">
                       School/Institution
                     </label>
                     <input
@@ -193,7 +193,7 @@ export default function TeacherSignup() {
                   </div>
 
                   <div>
-                    <label className="block text-[#111418] text-sm font-medium mb-2">
+                    <label className="block text-gray-900 text-sm font-medium mb-2">
                       Grade Level
                     </label>
                     <select
@@ -204,14 +204,14 @@ export default function TeacherSignup() {
                       aria-label="Select grade level"
                     >
                       <option value="">Select grade level</option>
-                      <option value="1st">1st</option>
-                      <option value="2nd">2nd</option>
-                      <option value="3rd">3rd</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-[#111418] text-sm font-medium mb-2">
+                    <label className="block text-gray-900 text-sm font-medium mb-2">
                       Subject
                     </label>
                     <select

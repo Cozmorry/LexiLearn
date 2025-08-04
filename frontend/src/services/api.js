@@ -5,6 +5,11 @@ const handleResponse = async (response) => {
   const data = await response.json();
   
   if (!response.ok) {
+    // If there are validation errors, include them in the error message
+    if (data.errors && Array.isArray(data.errors)) {
+      const errorMessages = data.errors.map(err => `${err.param}: ${err.msg}`).join(', ');
+      throw new Error(errorMessages || data.error || 'Something went wrong');
+    }
     throw new Error(data.error || 'Something went wrong');
   }
   
@@ -200,20 +205,48 @@ export const moduleAPI = {
 
   // Create new module
   createModule: async (moduleData) => {
+    // Check if moduleData is FormData (for file uploads)
+    const isFormData = moduleData instanceof FormData;
+    
+    const headers = {};
+    if (!isFormData) {
+      Object.assign(headers, getAuthHeaders());
+    } else {
+      // For FormData, only add Authorization header, not Content-Type
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    
     const response = await fetch(`${API_BASE_URL}/modules`, {
       method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(moduleData),
+      headers,
+      body: isFormData ? moduleData : JSON.stringify(moduleData),
     });
     return handleResponse(response);
   },
 
   // Update module
   updateModule: async (moduleId, moduleData) => {
+    // Check if moduleData is FormData (for file uploads)
+    const isFormData = moduleData instanceof FormData;
+    
+    const headers = {};
+    if (!isFormData) {
+      Object.assign(headers, getAuthHeaders());
+    } else {
+      // For FormData, only add Authorization header, not Content-Type
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    
     const response = await fetch(`${API_BASE_URL}/modules/${moduleId}`, {
       method: 'PUT',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(moduleData),
+      headers,
+      body: isFormData ? moduleData : JSON.stringify(moduleData),
     });
     return handleResponse(response);
   },
@@ -317,6 +350,137 @@ export const progressAPI = {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(exerciseData),
+    });
+    return handleResponse(response);
+  },
+};
+
+// Assignment API calls
+export const assignmentAPI = {
+  // Get all assignments
+  getAssignments: async (filters = {}) => {
+    const params = new URLSearchParams(filters);
+    const response = await fetch(`${API_BASE_URL}/assignments?${params}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Get specific assignment
+  getAssignment: async (assignmentId) => {
+    const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Create new assignment
+  createAssignment: async (assignmentData) => {
+    // Check if assignmentData is FormData (for file uploads)
+    const isFormData = assignmentData instanceof FormData;
+    
+    const headers = {};
+    if (!isFormData) {
+      Object.assign(headers, getAuthHeaders());
+    } else {
+      // For FormData, only add Authorization header, not Content-Type
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/assignments`, {
+      method: 'POST',
+      headers,
+      body: isFormData ? assignmentData : JSON.stringify(assignmentData),
+    });
+    return handleResponse(response);
+  },
+
+  // Update assignment
+  updateAssignment: async (assignmentId, assignmentData) => {
+    // Check if assignmentData is FormData (for file uploads)
+    const isFormData = assignmentData instanceof FormData;
+    
+    const headers = {};
+    if (!isFormData) {
+      Object.assign(headers, getAuthHeaders());
+    } else {
+      // For FormData, only add Authorization header, not Content-Type
+      const token = localStorage.getItem('token');
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}`, {
+      method: 'PUT',
+      headers,
+      body: isFormData ? assignmentData : JSON.stringify(assignmentData),
+    });
+    return handleResponse(response);
+  },
+
+  // Delete assignment
+  deleteAssignment: async (assignmentId) => {
+    const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Assign assignment to students
+  assignToStudents: async (assignmentId, studentIds) => {
+    const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/assign`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ studentIds }),
+    });
+    return handleResponse(response);
+  },
+
+  // Remove assignment from students
+  removeFromStudents: async (assignmentId, studentIds) => {
+    const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/assign`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ studentIds }),
+    });
+    return handleResponse(response);
+  },
+
+  // Get quiz questions for an assignment
+  getQuizQuestions: async (assignmentId) => {
+    const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/quiz`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Submit quiz answers
+  submitQuiz: async (assignmentId, answers, timeSpent) => {
+    const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/quiz/submit`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ answers, timeSpent }),
+    });
+    return handleResponse(response);
+  },
+
+  // Get quiz results
+  getQuizResults: async (assignmentId) => {
+    const response = await fetch(`${API_BASE_URL}/assignments/${assignmentId}/quiz/results`, {
+      headers: getAuthHeaders(),
+    });
+    return handleResponse(response);
+  },
+
+  // Get student's submissions (for performance tracking)
+  getStudentSubmissions: async (studentId) => {
+    const response = await fetch(`${API_BASE_URL}/assignments/student/${studentId}/submissions`, {
+      headers: getAuthHeaders(),
     });
     return handleResponse(response);
   },

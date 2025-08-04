@@ -64,7 +64,7 @@ export default function TeacherLogin() {
             {/* Login Form Card */}
             <div className="bg-white rounded-2xl shadow-lg border border-[#dde0e4] p-8">
               <div className="text-center mb-8">
-                <h1 className="text-[#111418] text-3xl font-bold leading-tight mb-2">
+                <h1 className="text-gray-900 text-3xl font-bold leading-tight mb-2">
                   Teacher Login
                 </h1>
                 <p className="text-[#637588] text-base">
@@ -86,7 +86,7 @@ export default function TeacherLogin() {
 
               <form onSubmit={handleTeacherLogin} className="space-y-6">
                 <div>
-                  <label className="block text-[#111418] text-sm font-medium mb-2">
+                  <label className="block text-gray-900 text-sm font-medium mb-2">
                     Email Address
                   </label>
                   <input
@@ -100,7 +100,7 @@ export default function TeacherLogin() {
                 </div>
 
                 <div>
-                  <label className="block text-[#111418] text-sm font-medium mb-2">
+                  <label className="block text-gray-900 text-sm font-medium mb-2">
                     Password
                   </label>
                   <input

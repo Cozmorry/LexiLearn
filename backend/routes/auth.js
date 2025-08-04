@@ -28,10 +28,10 @@ router.post('/register', [
   body('email').isEmail().normalizeEmail().withMessage('Please enter a valid email'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long'),
   body('role').isIn(['student', 'teacher', 'admin']).withMessage('Invalid role'),
-  body('grade').optional().isIn(['1st', '2nd', '3rd']).withMessage('Invalid grade level'),
+  body('grade').optional().isIn(['1', '2', '3']).withMessage('Invalid grade level'),
   body('teacherId').optional().isMongoId().withMessage('Invalid teacher ID'),
   body('school').optional().trim().isLength({ max: 200 }).withMessage('School name cannot exceed 200 characters'),
-  body('gradeLevel').optional().isIn(['K-2', '3-5', '6-8', '9-12']).withMessage('Invalid grade level'),
+  body('gradeLevel').optional().isIn(['1', '2', '3']).withMessage('Invalid grade level'),
   body('subject').optional().isIn(['Reading', 'Writing', 'Language Arts', 'English', 'Special Education', 'Other']).withMessage('Invalid subject')
 ], async (req, res) => {
   try {

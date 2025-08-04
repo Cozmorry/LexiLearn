@@ -10,31 +10,79 @@ const moduleSchema = new mongoose.Schema({
   description: {
     type: String,
     required: [true, 'Module description is required'],
-    maxlength: [500, 'Description cannot be more than 500 characters']
+    maxlength: [1000, 'Description cannot be more than 1000 characters']
   },
   category: {
     type: String,
     required: [true, 'Module category is required'],
-    enum: ['reading', 'spelling', 'comprehension', 'writing', 'vocabulary']
+    enum: ['Reading', 'Writing', 'Grammar', 'Vocabulary', 'Comprehension', 'Phonics', 'Literature', 'Creative Writing']
   },
   difficulty: {
     type: String,
     required: [true, 'Module difficulty is required'],
-    enum: ['beginner', 'intermediate', 'advanced']
+    enum: ['Beginner', 'Intermediate', 'Advanced']
   },
   gradeLevel: {
     type: String,
     required: [true, 'Grade level is required'],
-    enum: ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th']
+    enum: ['1', '2', '3']
   },
+  estimatedTime: {
+    type: Number,
+    required: [true, 'Estimated time is required'],
+    min: [1, 'Estimated time must be at least 1 minute']
+  },
+  objectives: {
+    type: String,
+    maxlength: [1000, 'Objectives cannot be more than 1000 characters']
+  },
+  prerequisites: {
+    type: String,
+    maxlength: [500, 'Prerequisites cannot be more than 500 characters']
+  },
+  materials: {
+    type: String,
+    maxlength: [500, 'Materials cannot be more than 500 characters']
+  },
+  instructions: {
+    type: String,
+    maxlength: [2000, 'Instructions cannot be more than 2000 characters']
+  },
+  assessment: {
+    type: String,
+    maxlength: [1000, 'Assessment cannot be more than 1000 characters']
+  },
+  photos: [{
+    filename: String,
+    originalName: String,
+    path: String,
+    mimetype: String,
+    size: Number
+  }],
+  videos: [{
+    filename: String,
+    originalName: String,
+    path: String,
+    mimetype: String,
+    size: Number
+  }],
   content: {
     type: [{
       type: {
         type: String,
-        enum: ['text', 'image', 'audio', 'video', 'interactive']
+        enum: ['text', 'image', 'audio', 'video', 'interactive', 'quiz']
       },
       data: mongoose.Schema.Types.Mixed,
-      order: Number
+      order: Number,
+      quizData: {
+        question: String,
+        options: [String],
+        correctAnswer: Number,
+        points: {
+          type: Number,
+          default: 10
+        }
+      }
     }],
     required: [true, 'Module content is required']
   },

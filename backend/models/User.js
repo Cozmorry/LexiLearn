@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
   },
   grade: {
     type: String,
-    enum: ['1st', '2nd', '3rd'],
+    enum: ['1', '2', '3'],
     required: function() { return this.role === 'student'; }
   },
   secretCode: {
@@ -49,12 +49,13 @@ const userSchema = new mongoose.Schema({
   },
   gradeLevel: {
     type: String,
-    enum: ['K-2', '3-5', '6-8', '9-12'],
+    enum: ['1', '2', '3'],
     required: function() { return this.role === 'teacher'; }
   },
   subject: {
     type: String,
-    enum: ['Reading', 'Writing', 'Language Arts', 'English', 'Special Education', 'Other'],
+    trim: true,
+    maxlength: [100, 'Subject cannot be more than 100 characters'],
     required: function() { return this.role === 'teacher'; }
   },
   avatar: {
@@ -151,7 +152,9 @@ userSchema.methods.generateSecretCode = function() {
 userSchema.methods.getPublicProfile = function() {
   const userObject = this.toObject();
   delete userObject.password;
-  delete userObject.secretCode;
+  if (userObject.role !== 'student') {
+    delete userObject.secretCode;
+  }
   return userObject;
 };
 
@@ -165,7 +168,7 @@ userSchema.statics.findTeachers = function() {
 // Static method to find students by teacher
 userSchema.statics.findStudentsByTeacher = function(teacherId) {
   return this.find({ teacherId, role: 'student', isActive: true })
-    .select('name email grade secretCode avatar lastLogin')
+    .select('name email grade secretCode avatar lastLogin role')
     .sort({ name: 1 });
 };
 
