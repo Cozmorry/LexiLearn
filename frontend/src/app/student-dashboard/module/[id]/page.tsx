@@ -5,6 +5,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Footer from '../../../components/Footer';
 import StudentNavigationBar from '../../components/StudentNavigationBar';
+import VideoGallery from '../../../components/VideoGallery';
 import { authAPI, moduleAPI, progressAPI, tokenUtils } from '../../../../services/api';
 
 interface Module {
@@ -475,6 +476,16 @@ export default function ModuleDetailPage() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Learning Videos */}
+            <div className="p-4">
+              <h3 className="text-[#111418] text-xl font-semibold mb-4">Learning Videos</h3>
+              <VideoGallery 
+                videos={module.videos || []} 
+                moduleId={moduleId}
+                studentId={JSON.parse(localStorage.getItem('user') || '{}')._id}
+              />
             </div>
 
             {/* Exercises Preview */}

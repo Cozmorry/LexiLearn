@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
 import StudentNavigationBar from '../../../../components/StudentNavigationBar';
+import VideoPlayer from '../../../../../components/VideoPlayer';
+import VideoProgress from '../../../../../components/VideoProgress';
 import { authAPI, moduleAPI, progressAPI, tokenUtils } from '../../../../../../services/api';
 
 interface Module {
@@ -26,6 +28,11 @@ interface Module {
     type: 'text' | 'image' | 'audio' | 'video' | 'interactive' | 'quiz';
     data: string;
     order: number;
+    videoInfo?: {
+      originalName: string;
+      mimetype: string;
+      size: number;
+    };
     quizData?: {
       question: string;
       options: string[];
@@ -72,6 +79,7 @@ export default function ExercisePage() {
   const [timeSpent, setTimeSpent] = useState(0);
   const [showComprehensionQuestion, setShowComprehensionQuestion] = useState(false);
   const [comprehensionAnswer, setComprehensionAnswer] = useState<string>('');
+  const [videoProgress, setVideoProgress] = useState(0);
   
   const router = useRouter();
   const params = useParams();
@@ -171,14 +179,11 @@ export default function ExercisePage() {
     }
   };
 
-  const currentExercise = module?.content[currentStep];
-  const isLastExercise = currentStep === (module?.content.length || 0) - 1;
-  const isQuiz = currentExercise?.type === 'quiz';
+  const currentExercise = useMemo(() => module?.content[currentStep], [module, currentStep]);
+  const isLastExercise = useMemo(() => currentStep === (module?.content.length || 0) - 1, [currentStep, module?.content.length]);
+  const isQuiz = useMemo(() => currentExercise?.type === 'quiz', [currentExercise?.type]);
   
-  // Debug logging
-  console.log('Current exercise:', currentExercise);
-  console.log('Comprehension question:', currentExercise?.comprehensionQuestion);
-  console.log('Show comprehension question:', showComprehensionQuestion);
+
 
   const handleAnswerSelect = (answer: string) => {
     if (isQuiz) {
@@ -587,6 +592,49 @@ export default function ExercisePage() {
                       >
                         {isSubmitting ? 'Submitting...' : 'Submit Answer'}
                       </button>
+                    </div>
+                  ) : currentExercise.type === 'video' ? (
+                    // Video Exercise
+                    <div className="space-y-6">
+                      <div className="bg-white border border-[#dde0e4] rounded-xl overflow-hidden">
+                        <div className="aspect-video">
+                          <VideoPlayer
+                            src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/modules/uploads/${currentExercise.data}`}
+                            title={currentExercise.videoInfo?.originalName || 'Learning Video'}
+                            className="w-full h-full"
+                            onProgress={(progress) => {
+                              // Track video progress
+                              console.log('Video progress:', progress);
+                              setVideoProgress(progress);
+                            }}
+                            onComplete={() => {
+                              // Auto-advance after video completion
+                              setTimeout(() => {
+                                handleMarkAsComplete();
+                              }, 1000);
+                            }}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-[#f8f9fa] p-6 rounded-xl">
+                          <h3 className="text-[#111418] text-lg font-semibold mb-3">Video Information</h3>
+                          <div className="text-[#637588] text-sm space-y-2">
+                            <p><strong>Title:</strong> {currentExercise.videoInfo?.originalName || 'Learning Video'}</p>
+                            <p><strong>Type:</strong> {currentExercise.videoInfo?.mimetype || 'Video'}</p>
+                            <p><strong>Size:</strong> {currentExercise.videoInfo?.size ? `${(currentExercise.videoInfo.size / (1024 * 1024)).toFixed(1)} MB` : 'Unknown'}</p>
+                          </div>
+                        </div>
+                        
+                        <VideoProgress
+                          videoId={currentExercise.data}
+                          moduleId={moduleId}
+                          studentId={JSON.parse(localStorage.getItem('user') || '{}')._id || 'student'}
+                          externalProgress={videoProgress}
+                          className="h-fit"
+                        />
+                      </div>
                     </div>
                   ) : (
                     // Text/Reading Exercise

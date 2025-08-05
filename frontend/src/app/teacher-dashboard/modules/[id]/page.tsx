@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import NavigationBar from '../../components/NavigationBar';
 import Link from 'next/link';
 import { moduleAPI } from '../../../../services/api';
+import VideoPlayer from '../../../components/VideoPlayer';
 
 interface Module {
   _id: string;
@@ -389,17 +390,24 @@ export default function ModuleDetailPage() {
                   
                   {module.videos.length > 0 && (
                     <div>
-                      <h3 className="text-gray-900 font-medium mb-3">Videos</h3>
-                      <div className="space-y-4">
+                      <h3 className="text-gray-900 font-medium mb-3">Learning Videos</h3>
+                      <div className="space-y-6">
                         {module.videos.map((video, index) => (
-                          <div key={index} className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
-                            <video 
-                              controls
-                              className="w-full h-full object-cover rounded-lg"
-                            >
-                              <source src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/modules/uploads/${video.filename}`} type={video.mimetype} />
-                              Your browser does not support the video tag.
-                            </video>
+                          <div key={index} className="bg-white rounded-xl border border-[#dde0e4] overflow-hidden">
+                            <div className="aspect-video">
+                              <VideoPlayer
+                                src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/modules/uploads/${video.filename}`}
+                                title={video.originalName}
+                                className="w-full h-full"
+                              />
+                            </div>
+                            <div className="p-4">
+                              <h4 className="text-gray-900 font-medium mb-2">{video.originalName}</h4>
+                              <div className="flex items-center gap-4 text-sm text-[#637588]">
+                                <span>Size: {(video.size / (1024 * 1024)).toFixed(1)} MB</span>
+                                <span>Type: {video.mimetype}</span>
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>

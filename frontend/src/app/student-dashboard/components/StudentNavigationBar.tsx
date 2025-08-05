@@ -2,13 +2,23 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 const StudentNavigationBar: React.FC = () => {
   const pathname = usePathname();
+  const router = useRouter();
 
   const isActive = (path: string) => {
     return pathname === path;
+  };
+
+  const handleLogout = () => {
+    // Clear user data from localStorage
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    
+    // Redirect to localhost:3000
+    window.location.href = 'http://localhost:3000';
   };
 
   return (
@@ -67,9 +77,21 @@ const StudentNavigationBar: React.FC = () => {
                 <p className="text-[#111418] text-sm font-medium leading-normal">Progress</p>
               </div>
             </Link>
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-3 py-2 rounded-xl transition-colors hover:bg-red-50 text-red-600 w-full"
+            >
+              <div className="text-red-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
+                  <path d="M112,216a8,8,0,0,1-8,8H48a16,16,0,0,1-16-16V48A16,16,0,0,1,48,32h56a8,8,0,0,1,0,16H48V208h56A8,8,0,0,1,112,216Zm109.66-93.66-40-40a8,8,0,0,0-11.32,11.32L196.69,120H104a8,8,0,0,0,0,16h92.69l-26.35,26.34a8,8,0,0,0,11.32,11.32l40-40A8,8,0,0,0,221.66,122.34Z"></path>
+                </svg>
+              </div>
+              <p className="text-red-600 text-sm font-medium leading-normal">Logout</p>
+            </button>
           </div>
         </div>
-
 
       </div>
     </div>

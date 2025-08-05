@@ -194,6 +194,23 @@ router.post('/', [
       }
     }
 
+    // Automatically convert uploaded videos into learning content
+    if (videos.length > 0) {
+      const videoContent = videos.map((video, index) => ({
+        type: 'video',
+        data: video.filename,
+        order: content.length + index + 1,
+        videoInfo: {
+          originalName: video.originalName,
+          mimetype: video.mimetype,
+          size: video.size
+        }
+      }));
+      
+      // Add video content to existing content
+      content = [...content, ...videoContent];
+    }
+
     // Parse exercises from JSON string if provided
     let exercises = [];
     if (req.body.exercises) {
