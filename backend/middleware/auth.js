@@ -93,7 +93,7 @@ const canAccessStudent = async (req, res, next) => {
     }
 
     if (req.user.role === 'teacher') {
-      const studentId = req.params.studentId || req.body.studentId;
+      const studentId = req.params.id || req.params.studentId || req.body.studentId;
       if (!studentId) {
         return res.status(400).json({ error: 'Student ID is required' });
       }

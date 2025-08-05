@@ -164,7 +164,9 @@ router.put('/students/:id', [
   isTeacher,
   canAccessStudent,
   body('name').optional().trim().isLength({ min: 2, max: 50 }).withMessage('Name must be between 2 and 50 characters'),
+  body('email').optional().isEmail().withMessage('Please enter a valid email'),
   body('grade').optional().isIn(['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th']).withMessage('Invalid grade level'),
+  body('secretCode').optional().isLength({ min: 9, max: 9 }).withMessage('Secret code must be exactly 9 characters'),
   body('isActive').optional().isBoolean().withMessage('isActive must be boolean')
 ], async (req, res) => {
   try {
@@ -174,11 +176,13 @@ router.put('/students/:id', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, grade, isActive } = req.body;
+    const { name, email, grade, secretCode, isActive } = req.body;
     const updateData = {};
 
     if (name) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
     if (grade) updateData.grade = grade;
+    if (secretCode) updateData.secretCode = secretCode;
     if (typeof isActive === 'boolean') updateData.isActive = isActive;
 
     const updatedStudent = await User.findByIdAndUpdate(
