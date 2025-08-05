@@ -100,7 +100,25 @@ export default function ModuleDetailPage() {
     };
 
     checkAuth();
-  }, [moduleId, router, searchParams]);
+  }, [moduleId, router]); // Removed searchParams from dependencies to prevent infinite loops
+
+  // Separate useEffect to handle completion state
+  useEffect(() => {
+    const isCompleted = searchParams.get('completed') === 'true';
+    if (isCompleted && progress && module) {
+      // Update progress to completed state
+      const progressData = {
+        studentId: JSON.parse(localStorage.getItem('user') || '{}')._id,
+        moduleId: moduleId,
+        currentStep: module.content.length,
+        status: 'completed'
+      };
+      
+      progressAPI.updateProgress(progressData)
+        .then(response => setProgress(response.progress))
+        .catch(error => console.error('Error updating completion status:', error));
+    }
+  }, [searchParams.get('completed'), progress, module, moduleId]);
 
   const loadModuleData = async () => {
     try {

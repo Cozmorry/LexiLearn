@@ -108,6 +108,8 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showAlphabetModal, setShowAlphabetModal] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const router = useRouter();
 
   // Check authentication on component mount
@@ -181,6 +183,37 @@ export default function StudentDashboard() {
 
   const handleExternalResourceClick = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleAlphabetClick = () => {
+    setShowAlphabetModal(true);
+  };
+
+  const speakLetter = (letter: string) => {
+    if ('speechSynthesis' in window) {
+      setSpeaking(true);
+      const utterance = new SpeechSynthesisUtterance(letter);
+      utterance.rate = 0.7; // Slower speed for better comprehension
+      utterance.pitch = 1.0; // Normal pitch
+      utterance.volume = 1.0; // Full volume
+      utterance.onend = () => setSpeaking(false);
+      utterance.onerror = () => setSpeaking(false);
+      speechSynthesis.speak(utterance);
+    }
+  };
+
+  const speakAlphabet = () => {
+    if ('speechSynthesis' in window) {
+      setSpeaking(true);
+      const alphabet = 'A B C D E F G H I J K L M N O P Q R S T U V W X Y Z';
+      const utterance = new SpeechSynthesisUtterance(alphabet);
+      utterance.rate = 0.6; // Even slower for full alphabet
+      utterance.pitch = 1.0; // Normal pitch
+      utterance.volume = 1.0; // Full volume
+      utterance.onend = () => setSpeaking(false);
+      utterance.onerror = () => setSpeaking(false);
+      speechSynthesis.speak(utterance);
+    }
   };
 
   const handleLogout = async () => {
@@ -307,7 +340,20 @@ export default function StudentDashboard() {
       }
     }
     
-    // Recommendation 3: Daily tip based on user's progress
+    // Recommendation 3: Alphabet Practice (always include)
+    recommendations.push({
+      id: 'alphabet-practice',
+      title: 'Alphabet Practice',
+      description: 'Practice the alphabet with audio pronunciation.',
+      type: 'alphabet',
+      category: 'Phonics',
+      difficulty: 'Beginner',
+      estimatedTime: 10,
+      icon: '🔤',
+      color: 'bg-indigo-100 text-indigo-800'
+    });
+    
+    // Recommendation 4: Daily tip based on user's progress
     const tips = [
       {
         title: 'Reading Strategy',
@@ -551,6 +597,8 @@ export default function StudentDashboard() {
                           if (rec.type === 'module' && rec.id.includes('-')) {
                             const moduleId = rec.id.split('-')[1];
                             handleModuleClick(moduleId);
+                          } else if (rec.type === 'alphabet') {
+                            handleAlphabetClick();
                           }
                         }}
                       >
@@ -722,6 +770,79 @@ export default function StudentDashboard() {
         </div>
         <Footer />
       </div>
+
+      {/* Alphabet Modal */}
+      {showAlphabetModal && (
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-[#111418]">Alphabet Practice</h2>
+              <button
+                onClick={() => setShowAlphabetModal(false)}
+                className="text-[#637588] hover:text-[#111418] transition-colors"
+                aria-label="Close alphabet modal"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Full Alphabet Button */}
+            <div className="mb-6">
+              <button
+                onClick={speakAlphabet}
+                disabled={speaking}
+                className="flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-200 disabled:opacity-50"
+              >
+                {speaking ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                  </svg>
+                )}
+                <span className="font-semibold">Listen to Full Alphabet</span>
+              </button>
+            </div>
+
+            {/* Alphabet Grid */}
+            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
+              {Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ').map((letter) => (
+                <button
+                  key={letter}
+                  onClick={() => speakLetter(letter)}
+                  disabled={speaking}
+                  className="flex flex-col items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 disabled:opacity-50 group"
+                >
+                  <div className="text-3xl font-bold text-[#111418] mb-2 group-hover:scale-110 transition-transform">
+                    {letter}
+                  </div>
+                  <div className="text-xs text-[#637588] font-medium">
+                    {letter.toLowerCase()}
+                  </div>
+                  <div className="mt-2">
+                    <svg className="w-4 h-4 text-[#637588] group-hover:text-[#111418]" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                    </svg>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Instructions */}
+            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+              <h3 className="font-semibold text-[#111418] mb-2">How to use:</h3>
+              <ul className="text-sm text-[#637588] space-y-1">
+                <li>• Click any letter to hear its pronunciation</li>
+                <li>• Click "Listen to Full Alphabet" to hear all letters</li>
+                <li>• Practice saying each letter after hearing it</li>
+                <li>• Great for building phonics and pronunciation skills!</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

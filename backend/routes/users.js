@@ -337,15 +337,21 @@ router.put('/change-password', [
 
     const { currentPassword, newPassword } = req.body;
 
+    // Load user with password field for comparison
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     // Verify current password
-    const isMatch = await req.user.comparePassword(currentPassword);
+    const isMatch = await user.comparePassword(currentPassword);
     if (!isMatch) {
       return res.status(400).json({ error: 'Current password is incorrect' });
     }
 
     // Update password
-    req.user.password = newPassword;
-    await req.user.save();
+    user.password = newPassword;
+    await user.save();
 
     res.json({
       success: true,

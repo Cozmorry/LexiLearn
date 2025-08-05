@@ -14,11 +14,6 @@ const Header:React.FC = () => {
                 <h2 className="text-[#4798ea] text-lg font-bold leading-tight tracking-[-0.015em]">LexiLearn</h2>
               </div>
               <div className="flex flex-1 justify-end gap-8">
-                <div className="flex items-center gap-9">
-                  <a className="text-[#111418] text-sm font-medium leading-normal" href="#">Home</a>
-                  <a className="text-[#111418] text-sm font-medium leading-normal" href="#">About</a>
-                  <a className="text-[#111418] text-sm font-medium leading-normal" href="#">Contact</a>
-                </div>
                 <div className="flex gap-2">
                   <Link
                     href="/student-login"
