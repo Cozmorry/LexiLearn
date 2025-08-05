@@ -98,7 +98,20 @@ const TeacherStudentsPage: React.FC = () => {
             };
           }
 
-          const scores = submissions.map((sub: any) => sub.percentage || 0);
+          // Calculate scores properly - use the percentage field from QuizSubmission
+          const scores = submissions.map((sub: any) => {
+            // The QuizSubmission model has a 'percentage' field that stores the calculated percentage
+            if (sub.percentage !== undefined) {
+              return sub.percentage;
+            }
+            // Fallback: if percentage is not available, calculate from totalScore and maxScore
+            if (sub.totalScore !== undefined && sub.maxScore !== undefined && sub.maxScore > 0) {
+              return Math.round((sub.totalScore / sub.maxScore) * 100);
+            }
+            // Final fallback
+            return 0;
+          });
+          
           const totalAssignments = submissions.length;
           const completedAssignments = submissions.filter((sub: any) => sub.completedAt).length;
           const averageScore = scores.length > 0 ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : 0;

@@ -53,6 +53,12 @@ app.use('/api/modules/uploads', (req, res, next) => {
   next();
 }, express.static(path.join(__dirname, 'uploads')));
 
+// Also serve files without /api prefix for frontend compatibility
+app.use('/modules/uploads', (req, res, next) => {
+  console.log('Frontend static file request:', req.url);
+  next();
+}, express.static(path.join(__dirname, 'uploads')));
+
 // Test endpoint to verify uploads directory
 app.get('/api/test-uploads', (req, res) => {
   const fs = require('fs');

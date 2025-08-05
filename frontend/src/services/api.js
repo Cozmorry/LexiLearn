@@ -2,7 +2,24 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/a
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
-  const data = await response.json();
+  // Check if response is JSON
+  const contentType = response.headers.get('content-type');
+  let data;
+  
+  try {
+    if (contentType && contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      // Handle non-JSON responses (like rate limiting errors)
+      const text = await response.text();
+      throw new Error(text || 'Something went wrong');
+    }
+  } catch (error) {
+    if (error.message && !error.message.includes('Something went wrong')) {
+      throw error; // Re-throw if it's already a parsed error
+    }
+    throw new Error('Network error or invalid response');
+  }
   
   if (!response.ok) {
     // If there are validation errors, include them in the error message
@@ -59,6 +76,17 @@ export const authAPI = {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ secretCode, name }),
+    });
+    return handleResponse(response);
+  },
+
+  // Get all students for dropdown (public endpoint)
+  getAllStudents: async () => {
+    const response = await fetch(`${API_BASE_URL}/auth/students`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
     return handleResponse(response);
   },

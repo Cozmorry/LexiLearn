@@ -5,6 +5,15 @@ import NavigationBar from '../../teacher-dashboard/components/NavigationBar';
 import Link from 'next/link';
 import { moduleAPI } from '../../../services/api';
 
+interface Exercise {
+  type: 'multiple-choice' | 'fill-blank' | 'matching' | 'drag-drop' | 'typing';
+  question: string;
+  options?: string[];
+  correctAnswer: string | string[];
+  explanation?: string;
+  points: number;
+}
+
 interface ModuleFormData {
   title: string;
   description: string;
@@ -28,6 +37,7 @@ interface ModuleFormData {
       points: number;
     };
   }>;
+  exercises: Exercise[];
   photos: File[];
   videos: File[];
 }
@@ -46,6 +56,7 @@ export default function AddModulePage() {
     instructions: '',
     assessment: '',
     content: [],
+    exercises: [],
     photos: [],
     videos: []
   });
@@ -76,6 +87,76 @@ export default function AddModulePage() {
     }));
   };
 
+  const addExercise = () => {
+    const newExercise: Exercise = {
+      type: 'multiple-choice',
+      question: '',
+      options: ['', '', '', ''],
+      correctAnswer: '',
+      explanation: '',
+      points: 10
+    };
+    setFormData(prev => ({
+      ...prev,
+      exercises: [...prev.exercises, newExercise]
+    }));
+  };
+
+  const updateExercise = (index: number, field: keyof Exercise, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      exercises: prev.exercises.map((exercise, i) => 
+        i === index ? { ...exercise, [field]: value } : exercise
+      )
+    }));
+  };
+
+  const removeExercise = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      exercises: prev.exercises.filter((_, i) => i !== index)
+    }));
+  };
+
+  const addOption = (exerciseIndex: number) => {
+    setFormData(prev => ({
+      ...prev,
+      exercises: prev.exercises.map((exercise, i) => 
+        i === exerciseIndex 
+          ? { ...exercise, options: [...(exercise.options || []), ''] }
+          : exercise
+      )
+    }));
+  };
+
+  const updateOption = (exerciseIndex: number, optionIndex: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      exercises: prev.exercises.map((exercise, i) => 
+        i === exerciseIndex 
+          ? { 
+              ...exercise, 
+              options: exercise.options?.map((opt, j) => j === optionIndex ? value : opt) 
+            }
+          : exercise
+      )
+    }));
+  };
+
+  const removeOption = (exerciseIndex: number, optionIndex: number) => {
+    setFormData(prev => ({
+      ...prev,
+      exercises: prev.exercises.map((exercise, i) => 
+        i === exerciseIndex 
+          ? { 
+              ...exercise, 
+              options: exercise.options?.filter((_, j) => j !== optionIndex) 
+            }
+          : exercise
+      )
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -95,6 +176,9 @@ export default function AddModulePage() {
 
       // Add content as JSON string
       submitData.append('content', JSON.stringify(formData.content));
+
+      // Add exercises as JSON string
+      submitData.append('exercises', JSON.stringify(formData.exercises));
 
       // Add files
       formData.photos.forEach((file) => {
@@ -516,6 +600,178 @@ export default function AddModulePage() {
                        Add New Section
                      </button>
                   </div>
+                </div>
+
+                {/* Exercises */}
+                <div className="bg-white rounded-xl border border-[#dce0e5] p-6">
+                  <h2 className="text-gray-900 text-xl font-semibold mb-4">Module Exercises</h2>
+                  <p className="text-sm text-gray-700 mb-4">
+                    Add interactive exercises to test student understanding. These exercises will be presented to students as they progress through the module.
+                  </p>
+                  
+                  {formData.exercises.length === 0 ? (
+                    <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+                      <p className="text-gray-500 mb-4">No exercises added yet</p>
+                      <button
+                        type="button"
+                        onClick={addExercise}
+                        className="px-4 py-2 bg-[#4798ea] text-white rounded-lg hover:bg-[#3a7bc8] transition-colors"
+                      >
+                        Add First Exercise
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {formData.exercises.map((exercise, index) => (
+                        <div key={index} className="bg-gray-50 rounded-lg p-4 border border-[#dce0e5]">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-medium text-gray-900">Exercise {index + 1}</h3>
+                            <button
+                              type="button"
+                              onClick={() => removeExercise(index)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              Remove Exercise
+                            </button>
+                          </div>
+                          
+                          <div className="space-y-4">
+                            {/* Exercise Type */}
+                            <div>
+                              <label className="block text-gray-900 text-sm font-medium mb-2">
+                                Exercise Type
+                              </label>
+                              <select
+                                value={exercise.type}
+                                onChange={(e) => updateExercise(index, 'type', e.target.value)}
+                                className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent text-gray-900"
+                                aria-label="Select exercise type"
+                              >
+                                <option value="multiple-choice">Multiple Choice</option>
+                                <option value="fill-blank">Fill in the Blank</option>
+                                <option value="matching">Matching</option>
+                                <option value="drag-drop">Drag & Drop</option>
+                                <option value="typing">Typing</option>
+                              </select>
+                            </div>
+
+                            {/* Question */}
+                            <div>
+                              <label className="block text-gray-900 text-sm font-medium mb-2">
+                                Question
+                              </label>
+                              <textarea
+                                value={exercise.question}
+                                onChange={(e) => updateExercise(index, 'question', e.target.value)}
+                                placeholder="Enter the exercise question or instruction..."
+                                rows={3}
+                                className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                              />
+                            </div>
+
+                            {/* Options for multiple choice */}
+                            {exercise.type === 'multiple-choice' && (
+                              <div>
+                                <label className="block text-gray-900 text-sm font-medium mb-2">
+                                  Options
+                                </label>
+                                <div className="space-y-2">
+                                  {exercise.options?.map((option, optionIndex) => (
+                                    <div key={optionIndex} className="flex items-center gap-2">
+                                      <input
+                                        type="radio"
+                                        name={`correct-answer-${index}`}
+                                        checked={exercise.correctAnswer === option}
+                                        onChange={() => updateExercise(index, 'correctAnswer', option)}
+                                        className="text-[#4798ea] focus:ring-[#4798ea]"
+                                        aria-label={`Select option ${optionIndex + 1} as correct answer`}
+                                      />
+                                      <input
+                                        type="text"
+                                        value={option}
+                                        onChange={(e) => updateOption(index, optionIndex, e.target.value)}
+                                        placeholder={`Option ${optionIndex + 1}`}
+                                        className="flex-1 px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => removeOption(index, optionIndex)}
+                                        className="text-red-500 hover:text-red-700"
+                                        disabled={exercise.options?.length === 2}
+                                        aria-label={`Remove option ${optionIndex + 1}`}
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button
+                                    type="button"
+                                    onClick={() => addOption(index)}
+                                    className="text-[#4798ea] hover:text-[#3a7bc8] text-sm"
+                                  >
+                                    + Add Option
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Correct Answer for non-multiple choice */}
+                            {exercise.type !== 'multiple-choice' && (
+                              <div>
+                                <label className="block text-gray-900 text-sm font-medium mb-2">
+                                  Correct Answer
+                                </label>
+                                <input
+                                  type="text"
+                                  value={exercise.correctAnswer as string}
+                                  onChange={(e) => updateExercise(index, 'correctAnswer', e.target.value)}
+                                  placeholder="Enter the correct answer..."
+                                  className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                />
+                              </div>
+                            )}
+
+                            {/* Points */}
+                            <div>
+                              <label className="block text-gray-900 text-sm font-medium mb-2">
+                                Points
+                              </label>
+                              <input
+                                type="number"
+                                value={exercise.points}
+                                onChange={(e) => updateExercise(index, 'points', parseInt(e.target.value) || 0)}
+                                min="1"
+                                max="100"
+                                className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent text-gray-900"
+                              />
+                            </div>
+
+                            {/* Explanation */}
+                            <div>
+                              <label className="block text-gray-900 text-sm font-medium mb-2">
+                                Explanation (optional)
+                              </label>
+                              <textarea
+                                value={exercise.explanation || ''}
+                                onChange={(e) => updateExercise(index, 'explanation', e.target.value)}
+                                placeholder="Provide an explanation for the correct answer..."
+                                rows={2}
+                                className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      <button
+                        type="button"
+                        onClick={addExercise}
+                        className="w-full px-4 py-3 border-2 border-dashed border-[#dce0e5] rounded-lg text-[#4798ea] hover:border-[#4798ea] hover:bg-[#f0f8ff] transition-colors"
+                      >
+                        + Add Another Exercise
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Media Uploads */}

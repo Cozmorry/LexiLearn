@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema({
   },
   grade: {
     type: String,
-    enum: ['1', '2', '3'],
+    enum: ['1', '2', '3', '1st', '2nd', '3rd'],
     required: function() { return this.role === 'student'; }
   },
   secretCode: {

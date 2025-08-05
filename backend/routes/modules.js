@@ -193,13 +193,23 @@ router.post('/', [
       }
     }
 
+    // Parse exercises from JSON string if provided
+    let exercises = [];
+    if (req.body.exercises) {
+      try {
+        exercises = JSON.parse(req.body.exercises);
+      } catch (error) {
+        return res.status(400).json({ error: 'Invalid exercises format' });
+      }
+    }
+
     const moduleData = {
       ...req.body,
       photos,
       videos,
       content,
+      exercises,
       createdBy: req.user._id,
-      exercises: [], // Initialize empty exercises array
       estimatedDuration: req.body.estimatedTime // Map estimatedTime to estimatedDuration
     };
 

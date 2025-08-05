@@ -6,24 +6,12 @@ const Header:React.FC = () => {
   return (
     <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#f0f2f4] px-10 py-3">
               <div className="flex items-center gap-4 text-[#111418]">
-                <div className="size-4">
-                  <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <g clipPath="url(#clip0_6_330)">
-                      <path
-                        fillRule='evenodd'
-                        clipRule='evenodd'
-                        d='M24 0.757355L47.2426 24L24 47.2426L0.757355 24L24 0.757355ZM21 35.7574V12.2426L9.24264 24L21 35.7574Z'
-                        fill='currentColor'
-                      ></path>
-                    </g>
-                    <defs>
-                      <clipPath id="clip0_6_330">
-                        <rect width="48" height="48" fill="white"></rect>
-                      </clipPath>
-                    </defs>
+                <div className="flex items-center justify-center w-8 h-8 bg-gradient-to-br from-[#4798ea] to-[#3a7bc8] rounded-lg">
+                  <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
                   </svg>
                 </div>
-                <h2 className="text-[#111418] text-lg font-bold leading-tight tracking-[-0.015em]">LexiLearn</h2>
+                <h2 className="text-[#4798ea] text-lg font-bold leading-tight tracking-[-0.015em]">LexiLearn</h2>
               </div>
               <div className="flex flex-1 justify-end gap-8">
                 <div className="flex items-center gap-9">

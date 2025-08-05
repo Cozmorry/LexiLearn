@@ -20,6 +20,31 @@ const generateToken = (id) => {
   });
 };
 
+// @route   GET /api/auth/students
+// @desc    Get all students for dropdown (public endpoint)
+// @access  Public
+router.get('/students', async (req, res) => {
+  try {
+    const students = await User.find({ 
+      role: 'student',
+      isActive: { $ne: false } // Only active students
+    }).select('name secretCode grade').sort({ name: 1 });
+
+    res.json({
+      success: true,
+      students: students.map(student => ({
+        _id: student._id,
+        name: student.name,
+        secretCode: student.secretCode,
+        grade: student.grade
+      }))
+    });
+  } catch (error) {
+    console.error('Get students for dropdown error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // @route   POST /api/auth/register
 // @desc    Register a new user
 // @access  Public

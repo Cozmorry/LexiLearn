@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import NavigationBar from '../components/NavigationBar';
-import { userAPI, moduleAPI, progressAPI } from '../../../services/api';
+import { userAPI, moduleAPI, progressAPI, assignmentAPI } from '../../../services/api';
 
 interface Student {
   _id: string;
@@ -22,12 +22,26 @@ interface Module {
 
 interface Progress {
   _id: string;
-  studentId: string;
-  moduleId: string;
-  quizId?: string;
+  studentId: {
+    _id: string;
+    name: string;
+    email: string;
+    grade: string;
+  };
+  moduleId: {
+    _id: string;
+    title: string;
+    description: string;
+    gradeLevel: string;
+    difficulty: string;
+  };
+  status: 'not-started' | 'in-progress' | 'completed' | 'paused';
+  currentStep: number;
+  totalSteps: number;
   score: number;
-  completedAt: string;
   timeSpent: number;
+  completionPercentage: number;
+  lastActivity: string;
 }
 
 interface QuizResult {
@@ -38,6 +52,8 @@ interface QuizResult {
   completedAt: string;
   totalQuestions: number;
   correctAnswers: number;
+  assignmentTitle?: string;
+  studentName?: string;
 }
 
 const TeacherReportsPage: React.FC = () => {
@@ -59,22 +75,62 @@ const TeacherReportsPage: React.FC = () => {
     try {
       setLoading(true);
       
-      // Load students, modules, and progress data
+      // First load students, modules, and progress data
       const [studentsResponse, modulesResponse, progressResponse] = await Promise.all([
         userAPI.getMyStudents(),
         moduleAPI.getModules(),
-        progressAPI.getStudentSummary()
+        progressAPI.getProgress()
       ]);
+
+      console.log('Students response:', studentsResponse);
+      console.log('Modules response:', modulesResponse);
+      console.log('Progress response:', progressResponse);
 
       setStudents(studentsResponse.students || []);
       setModules(modulesResponse.modules || []);
       setProgress(progressResponse.progress || []);
       
-      // Initialize empty quiz results - will be populated when quiz API is available
-      setQuizResults([]);
+      // Then load quiz submissions for all students
+      const students = studentsResponse.students || [];
+      const quizSubmissionsPromises = students.map(async (student: any) => {
+        try {
+          const submissions = await assignmentAPI.getStudentSubmissions(student._id);
+          return submissions.submissions || [];
+        } catch (error) {
+          console.error(`Error loading submissions for student ${student._id}:`, error);
+          return [];
+        }
+      });
+      
+      const quizSubmissionsResponse = await Promise.all(quizSubmissionsPromises);
+      console.log('Quiz submissions response:', quizSubmissionsResponse);
+      
+      // Flatten and process quiz submissions
+      const allQuizSubmissions = quizSubmissionsResponse.flat();
+      const processedQuizResults = allQuizSubmissions.map((submission: any) => {
+        const student = students.find(s => s._id === submission.studentId);
+        return {
+          _id: submission._id,
+          studentId: submission.studentId,
+          quizId: submission.assignmentId || submission.quizId || 'Unknown Quiz',
+          score: submission.percentage || 0,
+          completedAt: submission.completedAt || submission.createdAt,
+          totalQuestions: submission.totalQuestions || 1,
+          correctAnswers: submission.correctAnswers || 0,
+          assignmentTitle: submission.assignmentTitle || 'Quiz',
+          studentName: student?.name || 'Unknown Student'
+        };
+      });
+      
+      setQuizResults(processedQuizResults);
       
     } catch (error) {
       console.error('Error loading reports data:', error);
+      // Set default data to prevent empty dashboard
+      setStudents([]);
+      setModules([]);
+      setProgress([]);
+      setQuizResults([]);
     } finally {
       setLoading(false);
     }
@@ -83,17 +139,27 @@ const TeacherReportsPage: React.FC = () => {
   // Calculate analytics
   const totalStudents = students.length;
   const totalModules = modules.length;
-  const averageScore = progress.length > 0 
-    ? Math.round(progress.reduce((sum, p) => sum + p.score, 0) / progress.length)
+  const completedProgress = progress.filter(p => p.status === 'completed');
+  
+  console.log('Analytics calculation:', {
+    totalStudents,
+    totalModules,
+    totalProgress: progress.length,
+    completedProgress: completedProgress.length,
+    progressData: progress.slice(0, 3) // Show first 3 items for debugging
+  });
+  
+  const averageScore = completedProgress.length > 0 
+    ? Math.round(completedProgress.reduce((sum, p) => sum + p.score, 0) / completedProgress.length)
     : 0;
   const completionRate = totalStudents > 0 
-    ? Math.round((progress.length / (totalStudents * totalModules)) * 100)
+    ? Math.round((completedProgress.length / (totalStudents * totalModules)) * 100)
     : 0;
 
   // Filter data based on selections
   const filteredProgress = progress.filter(p => {
-    if (selectedStudent && p.studentId !== selectedStudent) return false;
-    if (selectedModule && p.moduleId !== selectedModule) return false;
+    if (selectedStudent && p.studentId._id !== selectedStudent) return false;
+    if (selectedModule && p.moduleId._id !== selectedModule) return false;
     return true;
   });
 
@@ -116,7 +182,7 @@ const TeacherReportsPage: React.FC = () => {
 
   // Calculate performance trends
   const getPerformanceTrend = () => {
-    const recentScores = progress.slice(-5).map(p => p.score);
+    const recentScores = completedProgress.slice(-5).map(p => p.score);
     if (recentScores.length < 2) return 'stable';
     
     const firstHalf = recentScores.slice(0, Math.floor(recentScores.length / 2));
@@ -141,8 +207,8 @@ const TeacherReportsPage: React.FC = () => {
     }).reverse();
 
     return last7Days.map(date => {
-      const dayProgress = progress.filter(p => 
-        p.completedAt.startsWith(date)
+      const dayProgress = completedProgress.filter(p => 
+        p.lastActivity.startsWith(date)
       );
       const avgScore = dayProgress.length > 0 
         ? Math.round(dayProgress.reduce((sum, p) => sum + p.score, 0) / dayProgress.length)
@@ -158,7 +224,7 @@ const TeacherReportsPage: React.FC = () => {
 
   const generateModuleCompletionData = () => {
     return modules.map(module => {
-      const moduleProgress = progress.filter(p => p.moduleId === module._id);
+      const moduleProgress = completedProgress.filter(p => p.moduleId._id === module._id);
       const completionRate = totalStudents > 0 
         ? Math.round((moduleProgress.length / totalStudents) * 100)
         : 0;
@@ -425,9 +491,9 @@ const TeacherReportsPage: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <PieChart 
                         data={[
-                          { label: 'Excellent (90%+)', value: progress.filter(p => p.score >= 90).length, color: '#10B981' },
-                          { label: 'Good (80-89%)', value: progress.filter(p => p.score >= 80 && p.score < 90).length, color: '#F59E0B' },
-                          { label: 'Needs Improvement (<80%)', value: progress.filter(p => p.score < 80).length, color: '#EF4444' }
+                          { label: 'Excellent (90%+)', value: completedProgress.filter(p => p.score >= 90).length, color: '#10B981' },
+                          { label: 'Good (80-89%)', value: completedProgress.filter(p => p.score >= 80 && p.score < 90).length, color: '#F59E0B' },
+                          { label: 'Needs Improvement (<80%)', value: completedProgress.filter(p => p.score < 80).length, color: '#EF4444' }
                         ]} 
                         title="Score Distribution" 
                       />
@@ -459,13 +525,13 @@ const TeacherReportsPage: React.FC = () => {
                         {filteredProgress.slice(0, 5).map((p, index) => (
                           <div key={index} className="flex items-center justify-between py-2">
                             <div>
-                              <p className="text-[#111418] font-medium">{getStudentName(p.studentId)}</p>
-                              <p className="text-[#637588] text-sm">{getModuleTitle(p.moduleId)}</p>
+                              <p className="text-[#111418] font-medium">{p.studentId.name}</p>
+                              <p className="text-[#637588] text-sm">{p.moduleId.title}</p>
                             </div>
                             <div className="text-right">
                               <p className="text-[#111418] font-medium">{p.score}%</p>
                               <p className="text-[#637588] text-sm">
-                                {new Date(p.completedAt).toLocaleDateString()}
+                                {new Date(p.lastActivity).toLocaleDateString()}
                               </p>
                             </div>
                           </div>
@@ -543,10 +609,10 @@ const TeacherReportsPage: React.FC = () => {
                             {filteredProgress.map((p, index) => (
                               <tr key={index} className="border-t border-[#dce0e5]">
                                 <td className="px-6 py-4 text-[#111418] font-medium">
-                                  {getStudentName(p.studentId)}
+                                  {p.studentId.name}
                                 </td>
                                 <td className="px-6 py-4 text-[#637588]">
-                                  {getModuleTitle(p.moduleId)}
+                                  {p.moduleId.title}
                                 </td>
                                 <td className="px-6 py-4">
                                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -561,7 +627,7 @@ const TeacherReportsPage: React.FC = () => {
                                   {Math.round(p.timeSpent / 60)} min
                                 </td>
                                 <td className="px-6 py-4 text-[#637588]">
-                                  {new Date(p.completedAt).toLocaleDateString()}
+                                  {new Date(p.lastActivity).toLocaleDateString()}
                                 </td>
                               </tr>
                             ))}
@@ -586,7 +652,7 @@ const TeacherReportsPage: React.FC = () => {
                       <h3 className="text-[#111418] text-lg font-semibold mb-4">Module Performance</h3>
                       <div className="space-y-4">
                         {modules.map(module => {
-                          const moduleProgress = progress.filter(p => p.moduleId === module._id);
+                          const moduleProgress = completedProgress.filter(p => p.moduleId._id === module._id);
                           const avgScore = moduleProgress.length > 0 
                             ? Math.round(moduleProgress.reduce((sum, p) => sum + p.score, 0) / moduleProgress.length)
                             : 0;
@@ -627,33 +693,47 @@ const TeacherReportsPage: React.FC = () => {
                               <th className="px-6 py-3 text-left text-[#111418] text-sm font-medium">Completed</th>
                             </tr>
                           </thead>
-                          <tbody>
-                            {filteredQuizResults.map((quiz, index) => (
-                              <tr key={index} className="border-t border-[#dce0e5]">
-                                <td className="px-6 py-4 text-[#111418] font-medium">
-                                  {getStudentName(quiz.studentId)}
-                                </td>
-                                <td className="px-6 py-4 text-[#637588]">
-                                  Quiz {quiz.quizId}
-                                </td>
-                                <td className="px-6 py-4">
-                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    quiz.score >= 90 ? 'bg-green-100 text-green-800' :
-                                    quiz.score >= 80 ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-red-100 text-red-800'
-                                  }`}>
-                                    {quiz.score}%
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 text-[#637588]">
-                                  {quiz.correctAnswers}/{quiz.totalQuestions}
-                                </td>
-                                <td className="px-6 py-4 text-[#637588]">
-                                  {new Date(quiz.completedAt).toLocaleDateString()}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
+                                                     <tbody>
+                             {filteredQuizResults.length > 0 ? (
+                               filteredQuizResults.map((quiz, index) => (
+                                 <tr key={index} className="border-t border-[#dce0e5]">
+                                   <td className="px-6 py-4 text-[#111418] font-medium">
+                                     {quiz.studentName}
+                                   </td>
+                                   <td className="px-6 py-4 text-[#637588]">
+                                     {quiz.assignmentTitle}
+                                   </td>
+                                   <td className="px-6 py-4">
+                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                       quiz.score >= 90 ? 'bg-green-100 text-green-800' :
+                                       quiz.score >= 80 ? 'bg-yellow-100 text-yellow-800' :
+                                       'bg-red-100 text-red-800'
+                                     }`}>
+                                       {quiz.score}%
+                                     </span>
+                                   </td>
+                                   <td className="px-6 py-4 text-[#637588]">
+                                     {quiz.correctAnswers}/{quiz.totalQuestions}
+                                   </td>
+                                   <td className="px-6 py-4 text-[#637588]">
+                                     {new Date(quiz.completedAt).toLocaleDateString()}
+                                   </td>
+                                 </tr>
+                               ))
+                             ) : (
+                               <tr>
+                                 <td colSpan={5} className="px-6 py-8 text-center text-[#637588]">
+                                   <div className="flex flex-col items-center gap-2">
+                                     <svg className="w-8 h-8 text-[#dce0e5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                     </svg>
+                                     <p className="text-sm">No quiz results available</p>
+                                     <p className="text-xs">Students will appear here once they complete quizzes</p>
+                                   </div>
+                                 </td>
+                               </tr>
+                             )}
+                           </tbody>
                         </table>
                       </div>
                     </div>

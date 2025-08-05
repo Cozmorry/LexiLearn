@@ -1,11 +1,10 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Footer from '../components/Footer';
-import StudentNavigationBar from './components/StudentNavigationBar';
-import { authAPI, moduleAPI, progressAPI, quizAPI, tokenUtils } from '../../services/api';
+import Footer from '../../components/Footer';
+import StudentNavigationBar from '../components/StudentNavigationBar';
+import { authAPI, moduleAPI, progressAPI, tokenUtils } from '../../../services/api';
 
 interface User {
   _id: string;
@@ -56,31 +55,12 @@ interface Progress {
   completionPercentage: number;
 }
 
-interface Quiz {
-  _id: string;
-  title: string;
-  description: string;
-  category: string;
-  difficulty: string;
-  questions: Array<{
-    type: 'multiple-choice' | 'fill-blank' | 'matching' | 'drag-drop' | 'typing';
-    question: string;
-    options?: string[];
-    correctAnswer: string | string[];
-    explanation?: string;
-    points: number;
-  }>;
-  estimatedDuration: number;
-}
-
-export default function StudentDashboard() {
+export default function StudentModulesPage() {
   const [user, setUser] = useState<User | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [progress, setProgress] = useState<Progress[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const router = useRouter();
 
   // Check authentication on component mount
@@ -98,7 +78,7 @@ export default function StudentDashboard() {
           setUser(JSON.parse(userData));
         }
 
-        await loadDashboardData();
+        await loadModulesData();
       } catch (error) {
         console.error('Authentication error:', error);
         router.push('/student-login');
@@ -108,24 +88,25 @@ export default function StudentDashboard() {
     checkAuth();
   }, [router]);
 
-  const loadDashboardData = async () => {
+  const loadModulesData = async () => {
     try {
       setLoading(true);
       setError('');
 
-      // Load modules, quizzes, and progress in parallel
-      const [modulesData, quizzesData, progressData] = await Promise.all([
+      // Load modules and progress in parallel
+      const [modulesData, progressData] = await Promise.all([
         moduleAPI.getModules(),
-        quizAPI.getQuizzes(),
         progressAPI.getProgress()
       ]);
 
+      console.log('Modules data received:', modulesData);
+      console.log('Modules with photos:', modulesData.modules?.filter(m => m.photos && m.photos.length > 0));
+      
       setModules(modulesData.modules || []);
-      setQuizzes(quizzesData.quizzes || []);
       setProgress(progressData.progress || []);
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
-      setError('Failed to load dashboard data. Please try again.');
+      console.error('Error loading modules data:', error);
+      setError('Failed to load modules data. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -133,26 +114,6 @@ export default function StudentDashboard() {
 
   const handleModuleClick = (moduleId: string) => {
     router.push(`/student-dashboard/module/${moduleId}`);
-  };
-
-  const handleQuizClick = (quizId: string) => {
-    router.push(`/student-dashboard/quiz/${quizId}`);
-  };
-
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      await authAPI.logout();
-      tokenUtils.removeToken();
-      localStorage.removeItem('user');
-      router.push('/');
-    } catch (error) {
-      console.error('Logout error:', error);
-      // Still clear local data even if API call fails
-      tokenUtils.removeToken();
-      localStorage.removeItem('user');
-      router.push('/');
-    }
   };
 
   const getProgressForModule = (moduleId: string) => {
@@ -195,6 +156,17 @@ export default function StudentDashboard() {
     return 'Start';
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Completed':
+        return 'bg-green-100 text-green-800';
+      case 'Continue':
+        return 'bg-blue-100 text-blue-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   if (loading) {
     return (
       <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden" style={{ fontFamily: '"Plus Jakarta Sans", "Noto Sans", sans-serif' }}>
@@ -204,7 +176,7 @@ export default function StudentDashboard() {
             <div className="layout-content-container flex flex-col max-w-[960px] flex-1 items-center justify-center">
               <div className="flex flex-col items-center gap-4">
                 <div className="w-8 h-8 border-4 border-[#4798ea] border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-[#637588] text-lg">Loading your dashboard...</p>
+                <p className="text-[#637588] text-lg">Loading modules...</p>
               </div>
             </div>
           </div>
@@ -225,7 +197,7 @@ export default function StudentDashboard() {
                 <p className="text-red-600 text-lg font-medium">Oops! Something went wrong</p>
                 <p className="text-[#637588] text-center">{error}</p>
                 <button
-                  onClick={loadDashboardData}
+                  onClick={loadModulesData}
                   className="px-6 py-2 bg-[#4798ea] text-white rounded-lg hover:bg-[#3a7bc8] transition-colors"
                 >
                   Try Again
@@ -245,26 +217,23 @@ export default function StudentDashboard() {
         <div className="gap-1 px-6 flex flex-1 justify-center py-5">
           <StudentNavigationBar />
           <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
-            {/* Welcome Section */}
+            {/* Header */}
             <div className="flex flex-wrap justify-between gap-3 p-4">
               <div className="flex min-w-72 flex-col gap-3">
                 <p className="text-[#111418] tracking-light text-[32px] font-bold leading-tight">
-                  Welcome back, {user?.name || 'Student'}!
+                  All Modules
                 </p>
                 <p className="text-[#637588] text-sm font-normal leading-normal">
-                  Continue your learning journey with personalized modules and quizzes.
+                  Explore all available learning modules and track your progress.
                 </p>
               </div>
             </div>
             
-            {/* Assigned Modules */}
-            <h2 className="text-[#111418] text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">
-              Assigned Modules
-            </h2>
-            {modules.length > 0 ? (
-              <div className="p-4">
-                <div className="grid gap-4">
-                  {modules.map((module, index) => {
+            {/* Modules Grid */}
+            <div className="p-4">
+              {modules.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {modules.map((module) => {
                     const moduleProgress = getProgressForModule(module._id);
                     const moduleImage = getModuleImage(module);
                     const status = getModuleStatus(module._id);
@@ -272,38 +241,76 @@ export default function StudentDashboard() {
                     return (
                       <div 
                         key={module._id}
-                        className="flex items-center gap-4 p-4 border border-[#dde0e4] rounded-xl hover:bg-[#f8f9fa] transition-colors cursor-pointer"
+                        className="flex flex-col border border-[#dde0e4] rounded-xl hover:bg-[#f8f9fa] transition-colors cursor-pointer overflow-hidden"
                         onClick={() => handleModuleClick(module._id)}
                       >
-                        {/* Module Content */}
-                        <div className="flex-1">
-                          <p className="text-[#637588] text-xs mb-1">Module {index + 1}</p>
-                          <h3 className="text-[#111418] text-lg font-bold mb-2">{module.title}</h3>
-                          <p className="text-[#637588] text-sm mb-3">{module.description}</p>
-                          <button className="px-4 py-2 bg-[#f0f2f4] text-[#111418] rounded-lg text-sm font-medium hover:bg-[#e1e5e9] transition-colors">
-                            {status}
-                          </button>
-                        </div>
-                        
                         {/* Module Image */}
-                        <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0">
+                        <div className="w-full h-48 relative">
                           {module.photos && module.photos.length > 0 ? (
-                            <img 
-                              src={moduleImage}
-                              alt={module.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                                target.nextElementSibling?.classList.remove('hidden');
-                              }}
-                            />
+                            <>
+                              <img 
+                                src={moduleImage}
+                                alt={module.title}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  console.log('Image failed to load:', moduleImage, 'for module:', module.title);
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  target.nextElementSibling?.classList.remove('hidden');
+                                }}
+                                onLoad={() => {
+                                  console.log('Image loaded successfully:', moduleImage, 'for module:', module.title);
+                                }}
+                              />
+                              <div className={`w-full h-full ${moduleImage} flex items-center justify-center hidden`}>
+                                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center">
+                                  <svg className="w-8 h-8 text-[#637588]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                  </svg>
+                                </div>
+                              </div>
+                            </>
                           ) : (
                             <div className={`w-full h-full ${moduleImage} flex items-center justify-center`}>
-                              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-                                <svg className="w-6 h-6 text-[#637588]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center">
+                                <svg className="w-8 h-8 text-[#637588]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                                 </svg>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Status Badge */}
+                          <div className="absolute top-3 right-3">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                              {status}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Module Content */}
+                        <div className="p-4 flex-1 flex flex-col">
+                          <h3 className="text-[#111418] text-lg font-bold mb-2">{module.title}</h3>
+                          <p className="text-[#637588] text-sm mb-3 flex-1">{module.description}</p>
+                          
+                          {/* Module Details */}
+                          <div className="flex items-center justify-between text-xs text-[#637588]">
+                            <span>{module.category}</span>
+                            <span>{module.estimatedDuration} min</span>
+                          </div>
+                          
+                          {/* Progress Bar */}
+                          {moduleProgress && (
+                            <div className="mt-3">
+                              <div className="flex justify-between text-xs text-[#637588] mb-1">
+                                <span>Progress</span>
+                                <span>{moduleProgress.completionPercentage}%</span>
+                              </div>
+                              <div className="w-full bg-[#dce0e5] rounded-full h-1">
+                                <div 
+                                  className="bg-[#4798ea] h-1 rounded-full transition-all duration-300"
+                                  style={{ width: `${moduleProgress.completionPercentage}%` }}
+                                ></div>
                               </div>
                             </div>
                           )}
@@ -312,31 +319,12 @@ export default function StudentDashboard() {
                     );
                   })}
                 </div>
-              </div>
-            ) : (
-              <div className="p-8 text-center">
-                <p className="text-[#637588] text-lg">No modules assigned yet.</p>
-                <p className="text-[#637588] text-sm">Your teacher will assign modules for you to work on.</p>
-              </div>
-            )}
-            
-            {/* Logout Button */}
-            <div className="flex px-4 py-3 justify-end">
-              <button
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-10 px-4 bg-[#f0f2f4] text-[#111418] text-sm font-bold leading-normal tracking-[0.015em] hover:bg-[#e1e5e9] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Logout from student dashboard"
-              >
-                {isLoggingOut ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-[#111418] border-t-transparent rounded-full animate-spin"></div>
-                    Logging out...
-                  </div>
-                ) : (
-                  <span className="truncate">Logout</span>
-                )}
-              </button>
+              ) : (
+                <div className="p-8 text-center">
+                  <p className="text-[#637588] text-lg">No modules available yet.</p>
+                  <p className="text-[#637588] text-sm">Your teacher will assign modules for you to work on.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -344,4 +332,4 @@ export default function StudentDashboard() {
       </div>
     </div>
   );
-}
+} 

@@ -15,11 +15,22 @@ router.get('/', protect, async (req, res) => {
       // Get student's own progress
       const progress = await Progress.find({ studentId: req.user._id })
         .populate('moduleId', 'title category difficulty gradeLevel')
-        .sort({ lastActivity: -1 });
+        .sort({ lastActivity: -1 })
+        .lean();
+
+      // Add virtual fields to the response
+      const progressWithVirtuals = progress.map(p => ({
+        ...p,
+        completionPercentage: p.totalSteps > 0 ? Math.round((p.currentStep / p.totalSteps) * 100) : 0,
+        averageScore: p.exerciseResults && p.exerciseResults.length > 0 
+          ? Math.round((p.exerciseResults.reduce((sum, result) => sum + (result.isCorrect ? (result.points || 0) : 0), 0) / 
+                       p.exerciseResults.reduce((sum, result) => sum + (result.points || 0), 0)) * 100)
+          : 0
+      }));
 
       res.json({
         success: true,
-        progress
+        progress: progressWithVirtuals
       });
     } else if (req.user.role === 'teacher') {
       // Get progress for teacher's students
@@ -39,11 +50,22 @@ router.get('/', protect, async (req, res) => {
       const progress = await Progress.find(filter)
         .populate('studentId', 'name grade')
         .populate('moduleId', 'title category difficulty')
-        .sort({ lastActivity: -1 });
+        .sort({ lastActivity: -1 })
+        .lean();
+
+      // Add virtual fields to the response
+      const progressWithVirtuals = progress.map(p => ({
+        ...p,
+        completionPercentage: p.totalSteps > 0 ? Math.round((p.currentStep / p.totalSteps) * 100) : 0,
+        averageScore: p.exerciseResults && p.exerciseResults.length > 0 
+          ? Math.round((p.exerciseResults.reduce((sum, result) => sum + (result.isCorrect ? (result.points || 0) : 0), 0) / 
+                       p.exerciseResults.reduce((sum, result) => sum + (result.points || 0), 0)) * 100)
+          : 0
+      }));
 
       res.json({
         success: true,
-        progress
+        progress: progressWithVirtuals
       });
     }
   } catch (error) {
@@ -220,9 +242,19 @@ router.post('/', [
     progress.lastActivity = new Date();
     await progress.save();
 
+    // Add virtual fields to the response
+    const progressWithVirtuals = {
+      ...progress.toObject(),
+      completionPercentage: progress.totalSteps > 0 ? Math.round((progress.currentStep / progress.totalSteps) * 100) : 0,
+      averageScore: progress.exerciseResults && progress.exerciseResults.length > 0 
+        ? Math.round((progress.exerciseResults.reduce((sum, result) => sum + (result.isCorrect ? (result.points || 0) : 0), 0) / 
+                     progress.exerciseResults.reduce((sum, result) => sum + (result.points || 0), 0)) * 100)
+        : 0
+    };
+
     res.json({
       success: true,
-      progress
+      progress: progressWithVirtuals
     });
   } catch (error) {
     console.error('Create/update progress error:', error);
@@ -272,9 +304,19 @@ router.put('/:id', [
       { new: true, runValidators: true }
     );
 
+    // Add virtual fields to the response
+    const progressWithVirtuals = {
+      ...updatedProgress.toObject(),
+      completionPercentage: updatedProgress.totalSteps > 0 ? Math.round((updatedProgress.currentStep / updatedProgress.totalSteps) * 100) : 0,
+      averageScore: updatedProgress.exerciseResults && updatedProgress.exerciseResults.length > 0 
+        ? Math.round((updatedProgress.exerciseResults.reduce((sum, result) => sum + (result.isCorrect ? (result.points || 0) : 0), 0) / 
+                     updatedProgress.exerciseResults.reduce((sum, result) => sum + (result.points || 0), 0)) * 100)
+        : 0
+    };
+
     res.json({
       success: true,
-      progress: updatedProgress
+      progress: progressWithVirtuals
     });
   } catch (error) {
     console.error('Update progress error:', error);
@@ -374,9 +416,19 @@ router.post('/:id/exercise', [
     // Add exercise result
     await progress.addExerciseResult(req.body);
 
+    // Add virtual fields to the response
+    const progressWithVirtuals = {
+      ...progress.toObject(),
+      completionPercentage: progress.totalSteps > 0 ? Math.round((progress.currentStep / progress.totalSteps) * 100) : 0,
+      averageScore: progress.exerciseResults && progress.exerciseResults.length > 0 
+        ? Math.round((progress.exerciseResults.reduce((sum, result) => sum + (result.isCorrect ? (result.points || 0) : 0), 0) / 
+                     progress.exerciseResults.reduce((sum, result) => sum + (result.points || 0), 0)) * 100)
+        : 0
+    };
+
     res.json({
       success: true,
-      progress
+      progress: progressWithVirtuals
     });
   } catch (error) {
     console.error('Add exercise result error:', error);
