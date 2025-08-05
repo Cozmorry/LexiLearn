@@ -73,11 +73,38 @@ interface Quiz {
   estimatedDuration: number;
 }
 
+interface Recommendation {
+  id: string;
+  title: string;
+  description: string;
+  type: 'module' | 'quiz' | 'resource' | 'tip';
+  category: string;
+  difficulty: string;
+  estimatedTime: number;
+  icon: string;
+  color: string;
+}
+
+interface ExternalResource {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  coverImage: string;
+  category: string;
+  difficulty: string;
+  estimatedTime: number;
+  source: string;
+  tags: string[];
+}
+
 export default function StudentDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [progress, setProgress] = useState<Progress[]>([]);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [externalResources, setExternalResources] = useState<ExternalResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -123,6 +150,19 @@ export default function StudentDashboard() {
       setModules(modulesData.modules || []);
       setQuizzes(quizzesData.quizzes || []);
       setProgress(progressData.progress || []);
+      
+      // Generate daily recommendations
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      const dailyRecommendations = generateDailyRecommendations(
+        userData._id || 'default',
+        progressData.progress || [],
+        modulesData.modules || []
+      );
+      setRecommendations(dailyRecommendations);
+      
+      // Generate external resources
+      const externalResources = generateExternalResources(userData._id || 'default');
+      setExternalResources(externalResources);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       setError('Failed to load dashboard data. Please try again.');
@@ -137,6 +177,10 @@ export default function StudentDashboard() {
 
   const handleQuizClick = (quizId: string) => {
     router.push(`/student-dashboard/quiz/${quizId}`);
+  };
+
+  const handleExternalResourceClick = (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleLogout = async () => {
@@ -193,6 +237,213 @@ export default function StudentDashboard() {
     if (moduleProgress.status === 'completed') return 'Completed';
     if (moduleProgress.status === 'in-progress') return 'Continue';
     return 'Start';
+  };
+
+  const generateDailyRecommendations = (userId: string, userProgress: Progress[], availableModules: Module[]) => {
+    const today = new Date().toDateString();
+    const seed = userId + today; // Create unique seed for each user and day
+    
+    // Simple hash function to generate consistent recommendations
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      const char = seed.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    
+    const recommendations: Recommendation[] = [];
+    
+    // Get user's weak areas based on progress
+    const completedModules = userProgress.filter(p => p.status === 'completed');
+    const inProgressModules = userProgress.filter(p => p.status === 'in-progress');
+    
+    // Recommendation 1: Continue in-progress module
+    if (inProgressModules.length > 0) {
+      const randomIndex = Math.abs(hash) % inProgressModules.length;
+      const module = availableModules.find(m => m._id === inProgressModules[randomIndex].moduleId._id);
+      if (module) {
+        recommendations.push({
+          id: `continue-${module._id}`,
+          title: `Continue: ${module.title}`,
+          description: `Pick up where you left off in this ${module.category.toLowerCase()} module.`,
+          type: 'module',
+          category: module.category,
+          difficulty: module.difficulty,
+          estimatedTime: module.estimatedDuration,
+          icon: '📚',
+          color: 'bg-blue-100 text-blue-800'
+        });
+      }
+    }
+    
+    // Recommendation 2: Try a new module in user's preferred category
+    const preferredCategories = completedModules.length > 0 
+      ? completedModules.map(p => availableModules.find(m => m._id === p.moduleId._id)?.category).filter(Boolean)
+      : ['Reading', 'Comprehension'];
+    
+    const availableNewModules = availableModules.filter(m => 
+      !userProgress.some(p => p.moduleId._id === m._id)
+    );
+    
+    if (availableNewModules.length > 0) {
+      const preferredCategory = preferredCategories[Math.abs(hash + 1) % preferredCategories.length] || 'Reading';
+      const categoryModules = availableNewModules.filter(m => m.category === preferredCategory);
+      const module = categoryModules.length > 0 
+        ? categoryModules[Math.abs(hash + 2) % categoryModules.length]
+        : availableNewModules[Math.abs(hash + 2) % availableNewModules.length];
+      
+      if (module) {
+        recommendations.push({
+          id: `new-${module._id}`,
+          title: `Try: ${module.title}`,
+          description: `Explore this ${module.category.toLowerCase()} module to build your skills.`,
+          type: 'module',
+          category: module.category,
+          difficulty: module.difficulty,
+          estimatedTime: module.estimatedDuration,
+          icon: '🚀',
+          color: 'bg-green-100 text-green-800'
+        });
+      }
+    }
+    
+    // Recommendation 3: Daily tip based on user's progress
+    const tips = [
+      {
+        title: 'Reading Strategy',
+        description: 'Try reading aloud to improve comprehension and fluency.',
+        icon: '🎯',
+        color: 'bg-purple-100 text-purple-800'
+      },
+      {
+        title: 'Break It Down',
+        description: 'Take short breaks every 15 minutes to maintain focus.',
+        icon: '⏰',
+        color: 'bg-orange-100 text-orange-800'
+      },
+      {
+        title: 'Visual Learning',
+        description: 'Use highlighters and notes to organize information.',
+        icon: '✏️',
+        color: 'bg-pink-100 text-pink-800'
+      }
+    ];
+    
+    const tipIndex = Math.abs(hash + 3) % tips.length;
+    const tip = tips[tipIndex];
+    
+    recommendations.push({
+      id: `tip-${tipIndex}`,
+      title: tip.title,
+      description: tip.description,
+      type: 'tip',
+      category: 'Learning Strategy',
+      difficulty: 'Beginner',
+      estimatedTime: 5,
+      icon: tip.icon,
+      color: tip.color
+    });
+    
+    return recommendations;
+  };
+
+  const generateExternalResources = (userId: string) => {
+    const today = new Date().toDateString();
+    const seed = userId + today;
+    
+    // Simple hash function for consistent daily resources
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      const char = seed.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    
+    const resources: ExternalResource[] = [
+      {
+        id: '1',
+        title: 'Reading Rockets: Phonics and Decoding',
+        description: 'Learn phonics strategies to improve reading fluency and decoding skills.',
+        url: 'https://www.readingrockets.org/teaching/reading-basics/phonics',
+        coverImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop',
+        category: 'Phonics',
+        difficulty: 'Beginner',
+        estimatedTime: 15,
+        source: 'Reading Rockets',
+        tags: ['phonics', 'decoding', 'reading']
+      },
+      {
+        id: '2',
+        title: 'Khan Academy: Reading Comprehension',
+        description: 'Interactive lessons on reading comprehension strategies and techniques.',
+        url: 'https://www.khanacademy.org/ela/cc-2nd-reading-vocab',
+        coverImage: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&h=300&fit=crop',
+        category: 'Comprehension',
+        difficulty: 'Intermediate',
+        estimatedTime: 20,
+        source: 'Khan Academy',
+        tags: ['comprehension', 'reading', 'strategies']
+      },
+      {
+        id: '3',
+        title: 'Dyslexia Help: Visual Learning Techniques',
+        description: 'Discover visual learning strategies specifically designed for dyslexic learners.',
+        url: 'https://dyslexiahelp.umich.edu/tools/visual-learning',
+        coverImage: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=300&fit=crop',
+        category: 'Learning Strategies',
+        difficulty: 'Beginner',
+        estimatedTime: 10,
+        source: 'Dyslexia Help',
+        tags: ['visual learning', 'dyslexia', 'strategies']
+      },
+      {
+        id: '4',
+        title: 'BBC Bitesize: Grammar and Writing',
+        description: 'Fun, interactive grammar lessons with games and quizzes.',
+        url: 'https://www.bbc.co.uk/bitesize/subjects/zv48q6f',
+        coverImage: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?w=400&h=300&fit=crop',
+        category: 'Grammar',
+        difficulty: 'Intermediate',
+        estimatedTime: 25,
+        source: 'BBC Bitesize',
+        tags: ['grammar', 'writing', 'interactive']
+      },
+      {
+        id: '5',
+        title: 'Storybird: Creative Writing Prompts',
+        description: 'Inspire creativity with beautiful writing prompts and story starters.',
+        url: 'https://storybird.com/',
+        coverImage: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=300&fit=crop',
+        category: 'Creative Writing',
+        difficulty: 'Beginner',
+        estimatedTime: 30,
+        source: 'Storybird',
+        tags: ['creative writing', 'storytelling', 'prompts']
+      },
+      {
+        id: '6',
+        title: 'Vocabulary.com: Word Learning Games',
+        description: 'Expand your vocabulary through fun, adaptive word games.',
+        url: 'https://www.vocabulary.com/',
+        coverImage: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400&h=300&fit=crop',
+        category: 'Vocabulary',
+        difficulty: 'Beginner',
+        estimatedTime: 15,
+        source: 'Vocabulary.com',
+        tags: ['vocabulary', 'games', 'word learning']
+      }
+    ];
+    
+    // Select 3 random resources based on the hash
+    const selectedResources: ExternalResource[] = [];
+    const shuffled = [...resources].sort(() => 0.5 - Math.random());
+    
+    for (let i = 0; i < 3; i++) {
+      const index = Math.abs(hash + i) % shuffled.length;
+      selectedResources.push(shuffled[index]);
+    }
+    
+    return selectedResources;
   };
 
   if (loading) {
@@ -268,82 +519,205 @@ export default function StudentDashboard() {
                 )}
               </button>
             </div>
+            
             {/* Welcome Section */}
-            <div className="flex flex-wrap justify-between gap-3 p-4">
-              <div className="flex min-w-72 flex-col gap-3">
-                <p className="text-[#111418] tracking-light text-[32px] font-bold leading-tight">
-                  Welcome back, {user?.name || 'Student'}!
-                </p>
-                <p className="text-[#637588] text-sm font-normal leading-normal">
-                  Continue your learning journey with personalized modules and quizzes.
+            <div className="p-6">
+              <div className="mb-8">
+                <h1 className="text-[#111418] text-3xl font-bold mb-2">
+                  Welcome back, {user?.name || 'Student'}! 👋
+                </h1>
+                <p className="text-[#637588] text-lg">
+                  Ready to continue your learning journey? Here's what's waiting for you today.
                 </p>
               </div>
-            </div>
-            
-            {/* Assigned Modules */}
-            <h2 className="text-[#111418] text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">
-              Assigned Modules
-            </h2>
-            {modules.length > 0 ? (
-              <div className="p-4">
-                <div className="grid gap-4">
-                  {modules.map((module, index) => {
-                    const moduleProgress = getProgressForModule(module._id);
-                    const moduleImage = getModuleImage(module);
-                    const status = getModuleStatus(module._id);
-                    
-                    return (
+
+              {/* Daily Recommendations */}
+              {recommendations.length > 0 && (
+                <div className="mb-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-gradient-to-br from-[#4798ea] to-[#3a7bc8] rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                      </svg>
+                    </div>
+                    <h2 className="text-[#111418] text-xl font-bold">Today's Recommendations</h2>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {recommendations.map((rec) => (
                       <div 
-                        key={module._id}
-                        className="flex items-center gap-4 p-4 border border-[#dde0e4] rounded-xl hover:bg-[#f8f9fa] transition-colors cursor-pointer"
-                        onClick={() => handleModuleClick(module._id)}
+                        key={rec.id}
+                        className="bg-white border border-[#dde0e4] rounded-xl p-5 hover:shadow-lg transition-all duration-200 cursor-pointer"
+                        onClick={() => {
+                          if (rec.type === 'module' && rec.id.includes('-')) {
+                            const moduleId = rec.id.split('-')[1];
+                            handleModuleClick(moduleId);
+                          }
+                        }}
                       >
-                        {/* Module Content */}
-                        <div className="flex-1">
-                          <p className="text-[#637588] text-xs mb-1">Module {index + 1}</p>
-                          <h3 className="text-[#111418] text-lg font-bold mb-2">{module.title}</h3>
-                          <p className="text-[#637588] text-sm mb-3">{module.description}</p>
-                          <button className="px-4 py-2 bg-[#f0f2f4] text-[#111418] rounded-lg text-sm font-medium hover:bg-[#e1e5e9] transition-colors">
-                            {status}
-                          </button>
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="text-2xl">{rec.icon}</div>
+                          <div className="flex-1">
+                            <h3 className="text-[#111418] font-semibold text-sm mb-1">{rec.title}</h3>
+                            <p className="text-[#637588] text-xs mb-2">{rec.description}</p>
+                          </div>
                         </div>
-                        
-                        {/* Module Image */}
-                        <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0">
-                          {module.photos && module.photos.length > 0 ? (
-                            <img 
-                              src={moduleImage}
-                              alt={module.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                                target.nextElementSibling?.classList.remove('hidden');
-                              }}
-                            />
-                          ) : (
-                            <div className={`w-full h-full ${moduleImage} flex items-center justify-center`}>
-                              <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-                                <svg className="w-6 h-6 text-[#637588]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                </svg>
-                              </div>
-                            </div>
-                          )}
+                        <div className="flex items-center justify-between">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${rec.color}`}>
+                            {rec.category}
+                          </span>
+                          <span className="text-[#637588] text-xs">
+                            {rec.estimatedTime} min
+                          </span>
                         </div>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="p-8 text-center">
-                <p className="text-[#637588] text-lg">No modules assigned yet.</p>
-                <p className="text-[#637588] text-sm">Your teacher will assign modules for you to work on.</p>
-              </div>
-            )}
-            
+              )}
 
+              {/* External Learning Resources */}
+              {externalResources.length > 0 && (
+                <div className="mb-8">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-8 h-8 bg-gradient-to-br from-[#f59e0b] to-[#d97706] rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                      </svg>
+                    </div>
+                    <h2 className="text-[#111418] text-xl font-bold">External Learning Resources</h2>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {externalResources.map((resource) => (
+                      <div 
+                        key={resource.id}
+                        className="bg-white border border-[#dde0e4] rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group"
+                        onClick={() => handleExternalResourceClick(resource.url)}
+                      >
+                        {/* Cover Image */}
+                        <div className="w-full h-48 relative overflow-hidden">
+                          <img 
+                            src={resource.coverImage}
+                            alt={resource.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop';
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="p-5">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[#637588] text-xs font-medium">{resource.source}</span>
+                            <span className="text-[#637588] text-xs">•</span>
+                            <span className="text-[#637588] text-xs">{resource.difficulty}</span>
+                          </div>
+                          <h3 className="text-[#111418] font-semibold text-sm mb-2 line-clamp-2">{resource.title}</h3>
+                          <p className="text-[#637588] text-xs mb-3 line-clamp-2">{resource.description}</p>
+                          <div className="flex items-center justify-between">
+                            <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">
+                              {resource.category}
+                            </span>
+                            <span className="text-[#637588] text-xs">{resource.estimatedTime} min</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Assigned Modules */}
+              <div className="mb-8">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-gradient-to-br from-[#10b981] to-[#059669] rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                  </div>
+                  <h2 className="text-[#111418] text-xl font-bold">Your Learning Modules</h2>
+                </div>
+                
+                {modules.length > 0 ? (
+                  <div className="grid gap-4">
+                    {modules.map((module, index) => {
+                      const moduleProgress = getProgressForModule(module._id);
+                      const moduleImage = getModuleImage(module);
+                      const status = getModuleStatus(module._id);
+                      
+                      return (
+                        <div 
+                          key={module._id}
+                          className="bg-white border border-[#dde0e4] rounded-xl p-5 hover:shadow-lg transition-all duration-200 cursor-pointer"
+                          onClick={() => handleModuleClick(module._id)}
+                        >
+                          <div className="flex items-center gap-4">
+                            {/* Module Image */}
+                            <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0">
+                              {module.photos && module.photos.length > 0 ? (
+                                <img 
+                                  src={moduleImage}
+                                  alt={module.title}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    target.nextElementSibling?.classList.remove('hidden');
+                                  }}
+                                />
+                              ) : (
+                                <div className={`w-full h-full ${moduleImage} flex items-center justify-center`}>
+                                  <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                                    <svg className="w-5 h-5 text-[#637588]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                    </svg>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Module Content */}
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-[#637588] text-xs font-medium">Module {index + 1}</span>
+                                <span className="text-[#637588] text-xs">•</span>
+                                <span className="text-[#637588] text-xs">{module.category}</span>
+                              </div>
+                              <h3 className="text-[#111418] text-lg font-bold mb-2">{module.title}</h3>
+                              <p className="text-[#637588] text-sm mb-3 line-clamp-2">{module.description}</p>
+                              <div className="flex items-center justify-between">
+                                <button className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                  status === 'Completed' 
+                                    ? 'bg-green-100 text-green-800' 
+                                    : status === 'Continue'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {status}
+                                </button>
+                                <span className="text-[#637588] text-xs">{module.estimatedDuration} min</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="bg-white border border-[#dde0e4] rounded-xl p-8 text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-[#637588]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                      </svg>
+                    </div>
+                    <h3 className="text-[#111418] text-lg font-semibold mb-2">No modules assigned yet</h3>
+                    <p className="text-[#637588] text-sm">Your teacher will assign modules for you to work on.</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
         <Footer />
