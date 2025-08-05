@@ -206,13 +206,28 @@ const TeacherReportsPage: React.FC = () => {
       return date.toISOString().split('T')[0];
     }).reverse();
 
+    console.log('Generating performance data:', {
+      last7Days,
+      completedProgressCount: completedProgress.length,
+      sampleProgress: completedProgress.slice(0, 2)
+    });
+
     return last7Days.map(date => {
-      const dayProgress = completedProgress.filter(p => 
-        p.lastActivity.startsWith(date)
-      );
+      const dayProgress = completedProgress.filter(p => {
+        // Check if lastActivity exists and matches the date
+        if (!p.lastActivity) return false;
+        return p.lastActivity.startsWith(date);
+      });
+      
       const avgScore = dayProgress.length > 0 
         ? Math.round(dayProgress.reduce((sum, p) => sum + p.score, 0) / dayProgress.length)
         : 0;
+      
+      console.log(`Date ${date}:`, {
+        dayProgressCount: dayProgress.length,
+        avgScore,
+        sampleActivity: dayProgress.slice(0, 1)
+      });
       
       return {
         date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -241,29 +256,61 @@ const TeacherReportsPage: React.FC = () => {
 
   const performanceData = generatePerformanceData();
   const moduleCompletionData = generateModuleCompletionData();
+  
+  // Add sample data if no real data exists
+  const samplePerformanceData = performanceData.every(item => item.score === 0) ? [
+    { date: 'Jul 30', score: 0, completions: 0 },
+    { date: 'Jul 31', score: 0, completions: 0 },
+    { date: 'Aug 1', score: 0, completions: 0 },
+    { date: 'Aug 2', score: 0, completions: 0 },
+    { date: 'Aug 3', score: 0, completions: 0 },
+    { date: 'Aug 4', score: 0, completions: 0 },
+    { date: 'Aug 5', score: 0, completions: 0 }
+  ] : performanceData;
+  
+  console.log('Chart data:', {
+    performanceData: samplePerformanceData,
+    moduleCompletionData
+  });
 
   // Simple chart components
-  const LineChart = ({ data, title }: { data: any[], title: string }) => (
-    <div className="bg-white rounded-xl border border-[#dce0e5] p-6">
-      <h3 className="text-[#111418] text-lg font-semibold mb-4">{title}</h3>
-      <div className="h-64 flex items-end justify-between gap-2">
-        {data.map((item, index) => (
-          <div key={index} className="flex-1 flex flex-col items-center">
-            <div className="w-full bg-gray-200 rounded-t" style={{ height: `${item.score}%` }}>
-              <div 
-                className="bg-[#4798ea] rounded-t transition-all duration-300 hover:bg-[#3a7bc8]"
-                style={{ height: `${item.score}%` }}
-              ></div>
-            </div>
-            <div className="text-xs text-[#637588] mt-2 text-center">
-              <div>{item.date}</div>
-              <div className="font-medium">{item.score}%</div>
+  const LineChart = ({ data, title }: { data: any[], title: string }) => {
+    const hasData = data.some(item => item.score > 0 || item.completions > 0);
+    
+    return (
+      <div className="bg-white rounded-xl border border-[#dce0e5] p-6">
+        <h3 className="text-[#111418] text-lg font-semibold mb-4">{title}</h3>
+        {hasData ? (
+          <div className="h-64 flex items-end justify-between gap-2">
+            {data.map((item, index) => (
+              <div key={index} className="flex-1 flex flex-col items-center">
+                <div className="w-full bg-gray-200 rounded-t" style={{ height: `${Math.max(item.score, 1)}%` }}>
+                  <div 
+                    className="bg-[#4798ea] rounded-t transition-all duration-300 hover:bg-[#3a7bc8]"
+                    style={{ height: `${Math.max(item.score, 1)}%` }}
+                  ></div>
+                </div>
+                <div className="text-xs text-[#637588] mt-2 text-center">
+                  <div>{item.date}</div>
+                  <div className="font-medium">{item.score}%</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="h-64 flex items-center justify-center">
+            <div className="text-center text-[#637588]">
+              <svg className="w-12 h-12 mx-auto mb-4 text-[#dce0e5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <p className="text-sm font-medium">No performance data available</p>
+              <p className="text-xs">Data will appear here once students complete modules</p>
             </div>
           </div>
-        ))}
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   const BarChart = ({ data, title }: { data: any[], title: string }) => (
     <div className="bg-white rounded-xl border border-[#dce0e5] p-6">
@@ -360,12 +407,12 @@ const TeacherReportsPage: React.FC = () => {
                 <select
                   value={dateRange}
                   onChange={(e) => setDateRange(e.target.value as 'week' | 'month' | 'quarter')}
-                  className="px-3 py-2 rounded-xl border border-[#dce0e5] text-sm focus:outline-none focus:ring-2 focus:ring-[#4798ea]"
+                  className="px-3 py-2 rounded-xl border border-[#dce0e5] text-sm focus:outline-none focus:ring-2 focus:ring-[#4798ea] text-[#111418] bg-white"
                   aria-label="Select date range"
                 >
-                  <option value="week">Last Week</option>
-                  <option value="month">Last Month</option>
-                  <option value="quarter">Last Quarter</option>
+                  <option value="week" className="text-[#111418]">Last Week</option>
+                  <option value="month" className="text-[#111418]">Last Month</option>
+                  <option value="quarter" className="text-[#111418]">Last Quarter</option>
                 </select>
               </div>
             </div>
@@ -478,7 +525,7 @@ const TeacherReportsPage: React.FC = () => {
                     {/* Charts Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <LineChart 
-                        data={performanceData} 
+                        data={samplePerformanceData} 
                         title="Performance Over Time" 
                       />
                       <BarChart 
@@ -553,12 +600,12 @@ const TeacherReportsPage: React.FC = () => {
                           <select
                             value={selectedStudent}
                             onChange={(e) => setSelectedStudent(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl border border-[#dce0e5] focus:outline-none focus:ring-2 focus:ring-[#4798ea]"
+                            className="w-full px-3 py-2 rounded-xl border border-[#dce0e5] focus:outline-none focus:ring-2 focus:ring-[#4798ea] text-[#111418] bg-white"
                             aria-label="Select student"
                           >
-                            <option value="">All Students</option>
+                            <option value="" className="text-[#111418]">All Students</option>
                             {students.map(student => (
-                              <option key={student._id} value={student._id}>
+                              <option key={student._id} value={student._id} className="text-[#111418]">
                                 {student.name} ({student.grade})
                               </option>
                             ))}
@@ -569,12 +616,12 @@ const TeacherReportsPage: React.FC = () => {
                           <select
                             value={selectedModule}
                             onChange={(e) => setSelectedModule(e.target.value)}
-                            className="w-full px-3 py-2 rounded-xl border border-[#dce0e5] focus:outline-none focus:ring-2 focus:ring-[#4798ea]"
+                            className="w-full px-3 py-2 rounded-xl border border-[#dce0e5] focus:outline-none focus:ring-2 focus:ring-[#4798ea] text-[#111418] bg-white"
                             aria-label="Select module"
                           >
-                            <option value="">All Modules</option>
+                            <option value="" className="text-[#111418]">All Modules</option>
                             {modules.map(module => (
-                              <option key={module._id} value={module._id}>
+                              <option key={module._id} value={module._id} className="text-[#111418]">
                                 {module.title}
                               </option>
                             ))}
@@ -585,7 +632,7 @@ const TeacherReportsPage: React.FC = () => {
 
                     {/* Student Progress Chart */}
                     <LineChart 
-                      data={performanceData} 
+                      data={samplePerformanceData} 
                       title="Student Performance Over Time" 
                     />
 

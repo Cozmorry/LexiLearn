@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import NavigationBar from '../components/NavigationBar';
-import { userAPI, tokenUtils, assignmentAPI } from '../../../services/api';
+import { userAPI, tokenUtils } from '../../../services/api';
 import { useRouter } from 'next/navigation';
 
 interface Student {
@@ -15,8 +15,6 @@ interface Student {
   lastLogin?: string;
   performance?: {
     overallPercentage: number;
-    totalAssignments: number;
-    completedAssignments: number;
     averageScore: number;
     recentScores: number[];
   };
@@ -25,8 +23,6 @@ interface Student {
 interface PerformanceData {
   studentId: string;
   overallPercentage: number;
-  totalAssignments: number;
-  completedAssignments: number;
   averageScore: number;
   recentScores: number[];
 }
@@ -67,8 +63,8 @@ const TeacherStudentsPage: React.FC = () => {
     try {
       const performancePromises = studentsList.map(async (student) => {
         try {
-          // Get student's quiz submissions
-          const response = await assignmentAPI.getStudentSubmissions(student._id);
+          // Get student's quiz submissions (placeholder for future implementation)
+          const response = { submissions: [] };
           
           console.log(`Student ${student.name} response:`, response);
           
@@ -91,8 +87,6 @@ const TeacherStudentsPage: React.FC = () => {
             return {
               studentId: student._id,
               overallPercentage: 0,
-              totalAssignments: 0,
-              completedAssignments: 0,
               averageScore: 0,
               recentScores: []
             };
@@ -112,15 +106,11 @@ const TeacherStudentsPage: React.FC = () => {
             return 0;
           });
           
-          const totalAssignments = submissions.length;
-          const completedAssignments = submissions.filter((sub: any) => sub.completedAt).length;
           const averageScore = scores.length > 0 ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : 0;
           const overallPercentage = averageScore;
 
           console.log(`Student ${student.name} performance:`, {
             overallPercentage,
-            totalAssignments,
-            completedAssignments,
             averageScore,
             recentScores: scores.slice(-5)
           });
@@ -128,8 +118,6 @@ const TeacherStudentsPage: React.FC = () => {
           return {
             studentId: student._id,
             overallPercentage,
-            totalAssignments,
-            completedAssignments,
             averageScore,
             recentScores: scores.slice(-5) // Last 5 scores
           };
@@ -139,8 +127,6 @@ const TeacherStudentsPage: React.FC = () => {
           return {
             studentId: student._id,
             overallPercentage: 0,
-            totalAssignments: 0,
-            completedAssignments: 0,
             averageScore: 0,
             recentScores: []
           };
@@ -159,8 +145,6 @@ const TeacherStudentsPage: React.FC = () => {
             ...student,
             performance: perf ? {
               overallPercentage: perf.overallPercentage,
-              totalAssignments: perf.totalAssignments,
-              completedAssignments: perf.completedAssignments,
               averageScore: perf.averageScore,
               recentScores: perf.recentScores
             } : undefined
@@ -175,8 +159,6 @@ const TeacherStudentsPage: React.FC = () => {
           ...student,
           performance: {
             overallPercentage: 0,
-            totalAssignments: 0,
-            completedAssignments: 0,
             averageScore: 0,
             recentScores: []
           }
@@ -229,7 +211,7 @@ const TeacherStudentsPage: React.FC = () => {
                 <div className="flex-1">
                   <div className="text-sm opacity-90">{getPerformanceLabel(student.performance.overallPercentage)}</div>
                   <div className="text-sm opacity-75">
-                    {student.performance.completedAssignments} of {student.performance.totalAssignments} assignments completed
+                    Average score from recent activities
                   </div>
                 </div>
               </div>
@@ -242,16 +224,16 @@ const TeacherStudentsPage: React.FC = () => {
                 <div className="text-sm text-[#637588]">Average Score</div>
               </div>
               <div className="bg-gray-50 rounded-xl p-4">
-                <div className="text-2xl font-bold text-[#111418]">{student.performance.completedAssignments}</div>
-                <div className="text-sm text-[#637588]">Completed Assignments</div>
+                <div className="text-2xl font-bold text-[#111418]">{student.performance.recentScores.length}</div>
+                <div className="text-sm text-[#637588]">Recent Activities</div>
               </div>
               <div className="bg-gray-50 rounded-xl p-4">
                 <div className="text-2xl font-bold text-[#111418]">
-                  {student.performance.totalAssignments > 0 
-                    ? Math.round((student.performance.completedAssignments / student.performance.totalAssignments) * 100)
+                  {student.performance.recentScores.length > 0 
+                    ? Math.round(student.performance.recentScores.reduce((sum, score) => sum + score, 0) / student.performance.recentScores.length)
                     : 0}%
                 </div>
-                <div className="text-sm text-[#637588]">Completion Rate</div>
+                <div className="text-sm text-[#637588]">Recent Average</div>
               </div>
             </div>
 
@@ -262,7 +244,7 @@ const TeacherStudentsPage: React.FC = () => {
                 <div className="space-y-2">
                   {student.performance.recentScores.map((score, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="text-sm text-[#637588]">Assignment {student.performance.recentScores.length - index}</span>
+                      <span className="text-sm text-[#637588]">Activity {student.performance.recentScores.length - index}</span>
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getPerformanceColor(score)}`}>
                         {score}%
                       </span>
@@ -292,14 +274,7 @@ const TeacherStudentsPage: React.FC = () => {
                     <span className="text-yellow-800">Consider providing additional support and resources.</span>
                   </div>
                 )}
-                {student.performance.completedAssignments < student.performance.totalAssignments && (
-                  <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span className="text-blue-800">Has pending assignments to complete.</span>
-                  </div>
-                )}
+
               </div>
             </div>
           </div>
@@ -397,7 +372,7 @@ const TeacherStudentsPage: React.FC = () => {
                         </div>
                         <div>
                           <div className="text-3xl font-bold">
-                            {students.filter(s => s.performance?.completedAssignments > 0).length}
+                            {students.filter(s => s.performance?.recentScores.length > 0).length}
                           </div>
                           <div className="text-sm opacity-90">Active Students</div>
                         </div>

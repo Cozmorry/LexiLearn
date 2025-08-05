@@ -68,18 +68,7 @@ const NavigationBar: React.FC = () => {
               </div>
             </Link>
 
-            <Link href="/teacher-dashboard/assignments">
-              <div className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-colors ${
-                isActive('/teacher-dashboard/assignments') ? 'bg-[#f0f2f4]' : 'hover:bg-[#f8f9fa]'
-              }`}>
-                <div className="text-[#111418]" data-icon="ClipboardText" data-size="24px" data-weight="regular">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24px" height="24px" fill="currentColor" viewBox="0 0 256 256">
-                    <path d="M216,40H176V24a8,8,0,0,0-16,0V40H96V24a8,8,0,0,0-16,0V40H40A16,16,0,0,0,24,56V216a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A16,16,0,0,0,216,40ZM40,56H80V72a8,8,0,0,0,16,0V56h64V72a8,8,0,0,0,16,0V56h40V216H40ZM88,144a8,8,0,0,1,8-8h64a8,8,0,0,1,0,16H96A8,8,0,0,1,88,144Zm0,32a8,8,0,0,1,8-8h64a8,8,0,0,1,0,16H96A8,8,0,0,1,88,176Z"></path>
-                  </svg>
-                </div>
-                <p className="text-[#111418] text-sm font-medium leading-normal">Assignments</p>
-              </div>
-            </Link>
+
 
             <Link href="/teacher-dashboard/reports">
               <div className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-colors ${

@@ -149,7 +149,8 @@ export default function ModuleDetailPage() {
         moduleId: module._id,
         totalSteps: module.content.length,
         currentStep: 0,
-        status: 'in-progress'
+        status: 'not-started',
+        score: 0
       };
 
       const response = await progressAPI.updateProgress(progressData);
@@ -200,9 +201,10 @@ export default function ModuleDetailPage() {
         moduleId: module._id,
         totalSteps: module.content.length,
         currentStep: 0,
-        status: 'in-progress',
+        status: 'not-started',
         score: 0,
-        timeSpent: 0
+        timeSpent: 0,
+        reset: true
       };
 
       const response = await progressAPI.updateProgress(progressData);

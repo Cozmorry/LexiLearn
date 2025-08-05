@@ -13,7 +13,11 @@ router.get('/', protect, async (req, res) => {
   try {
     if (req.user.role === 'student') {
       // Get student's own progress
-      const progress = await Progress.find({ studentId: req.user._id })
+      const { moduleId } = req.query;
+      const filter = { studentId: req.user._id };
+      if (moduleId) filter.moduleId = moduleId;
+      
+      const progress = await Progress.find(filter)
         .populate('moduleId', 'title category difficulty gradeLevel')
         .sort({ lastActivity: -1 })
         .lean();
@@ -22,10 +26,8 @@ router.get('/', protect, async (req, res) => {
       const progressWithVirtuals = progress.map(p => ({
         ...p,
         completionPercentage: p.totalSteps > 0 ? Math.round((p.currentStep / p.totalSteps) * 100) : 0,
-        averageScore: p.exerciseResults && p.exerciseResults.length > 0 
-          ? Math.round((p.exerciseResults.reduce((sum, result) => sum + (result.isCorrect ? (result.points || 0) : 0), 0) / 
-                       p.exerciseResults.reduce((sum, result) => sum + (result.points || 0), 0)) * 100)
-          : 0
+        // Use the stored score instead of calculating from exercise results
+        averageScore: p.score || 0
       }));
 
       res.json({
@@ -57,10 +59,8 @@ router.get('/', protect, async (req, res) => {
       const progressWithVirtuals = progress.map(p => ({
         ...p,
         completionPercentage: p.totalSteps > 0 ? Math.round((p.currentStep / p.totalSteps) * 100) : 0,
-        averageScore: p.exerciseResults && p.exerciseResults.length > 0 
-          ? Math.round((p.exerciseResults.reduce((sum, result) => sum + (result.isCorrect ? (result.points || 0) : 0), 0) / 
-                       p.exerciseResults.reduce((sum, result) => sum + (result.points || 0), 0)) * 100)
-          : 0
+        // Use the stored score instead of calculating from exercise results
+        averageScore: p.score || 0
       }));
 
       res.json({
@@ -194,7 +194,7 @@ router.post('/', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { moduleId, currentStep, score, timeSpent, exerciseResult } = req.body;
+    const { moduleId, currentStep, score, timeSpent, exerciseResult, reset } = req.body;
 
     // Get module to determine total steps
     const module = await Module.findById(moduleId);
@@ -216,27 +216,53 @@ router.post('/', [
         moduleId,
         totalSteps,
         currentStep,
-        score: score || 0,
+        score: score !== undefined ? score : 0,
         timeSpent: timeSpent || 0
       });
     } else {
       // Update existing progress
       progress.currentStep = currentStep;
       if (score !== undefined) progress.score = score;
-      if (timeSpent !== undefined) progress.timeSpent += timeSpent;
+      if (timeSpent !== undefined) {
+        if (reset) {
+          progress.timeSpent = timeSpent; // Reset time spent
+        } else {
+          progress.timeSpent += timeSpent; // Add to existing time
+        }
+      }
+      
+      // Clear exercise results if resetting
+      if (reset) {
+        progress.exerciseResults = [];
+      }
     }
 
     // Add exercise result if provided
     if (exerciseResult) {
-      progress.exerciseResults.push(exerciseResult);
+      // Check if this exercise was already completed
+      const existingIndex = progress.exerciseResults.findIndex(
+        result => result.exerciseIndex === exerciseResult.exerciseIndex
+      );
+      
+      if (existingIndex !== -1) {
+        // Replace existing result
+        progress.exerciseResults[existingIndex] = exerciseResult;
+      } else {
+        // Add new result
+        progress.exerciseResults.push(exerciseResult);
+      }
     }
 
     // Update status based on completion
     if (currentStep >= totalSteps) {
       progress.status = 'completed';
       progress.completionDate = new Date();
-    } else if (progress.status === 'not-started') {
+    } else if (progress.status === 'not-started' && currentStep > 0) {
+      // Only set to in-progress if student has actually started (currentStep > 0)
       progress.status = 'in-progress';
+    } else if (progress.status === 'not-started' && currentStep === 0) {
+      // Keep as not-started when initializing progress at step 0
+      progress.status = 'not-started';
     }
 
     progress.lastActivity = new Date();
@@ -246,10 +272,8 @@ router.post('/', [
     const progressWithVirtuals = {
       ...progress.toObject(),
       completionPercentage: progress.totalSteps > 0 ? Math.round((progress.currentStep / progress.totalSteps) * 100) : 0,
-      averageScore: progress.exerciseResults && progress.exerciseResults.length > 0 
-        ? Math.round((progress.exerciseResults.reduce((sum, result) => sum + (result.isCorrect ? (result.points || 0) : 0), 0) / 
-                     progress.exerciseResults.reduce((sum, result) => sum + (result.points || 0), 0)) * 100)
-        : 0
+      // Use the stored score instead of calculating from exercise results
+      averageScore: progress.score || 0
     };
 
     res.json({
@@ -308,10 +332,8 @@ router.put('/:id', [
     const progressWithVirtuals = {
       ...updatedProgress.toObject(),
       completionPercentage: updatedProgress.totalSteps > 0 ? Math.round((updatedProgress.currentStep / updatedProgress.totalSteps) * 100) : 0,
-      averageScore: updatedProgress.exerciseResults && updatedProgress.exerciseResults.length > 0 
-        ? Math.round((updatedProgress.exerciseResults.reduce((sum, result) => sum + (result.isCorrect ? (result.points || 0) : 0), 0) / 
-                     updatedProgress.exerciseResults.reduce((sum, result) => sum + (result.points || 0), 0)) * 100)
-        : 0
+      // Use the stored score instead of calculating from exercise results
+      averageScore: updatedProgress.score || 0
     };
 
     res.json({

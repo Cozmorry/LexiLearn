@@ -6,14 +6,7 @@ import NavigationBar from '../../../components/NavigationBar';
 import Link from 'next/link';
 import { moduleAPI } from '../../../../../services/api';
 
-interface Exercise {
-  type: 'multiple-choice' | 'fill-blank' | 'matching' | 'drag-drop' | 'typing';
-  question: string;
-  options?: string[];
-  correctAnswer: string | string[];
-  explanation?: string;
-  points: number;
-}
+
 
 interface Module {
   _id: string;
@@ -38,7 +31,6 @@ interface Module {
       points: number;
     };
   }>;
-  exercises: Exercise[];
   photos: Array<{
     filename: string;
     originalName: string;
@@ -82,7 +74,6 @@ interface ModuleFormData {
       points: number;
     };
   }>;
-  exercises: Exercise[];
   photos: File[];
   videos: File[];
 }
@@ -108,7 +99,6 @@ export default function EditModulePage() {
     instructions: '',
     assessment: '',
     content: [],
-    exercises: [],
     photos: [],
     videos: []
   });
@@ -332,7 +322,7 @@ export default function EditModulePage() {
       formDataToSend.append('instructions', formData.instructions);
       formDataToSend.append('assessment', formData.assessment);
       formDataToSend.append('content', JSON.stringify(formData.content));
-      formDataToSend.append('exercises', JSON.stringify(formData.exercises));
+
 
       // Add files
       formData.photos.forEach(file => {

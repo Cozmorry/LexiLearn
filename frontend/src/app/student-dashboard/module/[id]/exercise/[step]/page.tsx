@@ -152,7 +152,7 @@ export default function ExercisePage() {
         moduleId: moduleId,
         totalSteps: module?.content.length || 0,
         currentStep: currentStep,
-        status: 'in-progress'
+        status: 'not-started' // Always start with not-started for new progress
       };
 
       const response = await progressAPI.updateProgress(progressData);
@@ -181,11 +181,14 @@ export default function ExercisePage() {
       const nextStep = isLastExercise ? (module?.content.length || 0) : currentStep + 1;
       const newStatus = isLastExercise ? 'completed' : 'in-progress';
       
+      // If this is the first exercise (step 0) and status is not-started, change to in-progress
+      const shouldStartProgress = currentStep === 0 && progress?.status === 'not-started';
+      
       const progressData = {
         studentId: JSON.parse(localStorage.getItem('user') || '{}')._id,
         moduleId: moduleId,
         currentStep: nextStep,
-        status: newStatus,
+        status: shouldStartProgress ? 'in-progress' : newStatus,
         timeSpent: (progress?.timeSpent || 0) + timeSpent
       };
 
@@ -227,6 +230,9 @@ export default function ExercisePage() {
       const nextStep = isLastExercise ? (module?.content.length || 0) : currentStep + 1;
       const newStatus = isLastExercise ? 'completed' : 'in-progress';
       
+      // If this is the first exercise (step 0) and status is not-started, change to in-progress
+      const shouldStartProgress = currentStep === 0 && progress?.status === 'not-started';
+      
       // Check if this exercise has already been completed to avoid score accumulation
       const existingResult = progress?.exerciseResults?.find(result => result.exerciseIndex === currentStep);
       
@@ -242,8 +248,11 @@ export default function ExercisePage() {
         currentTotalPoints = progress?.score || 0;
       } else {
         // Calculate new total points and convert to percentage
-        const currentPoints = (progress?.score || 0) + points;
-        currentTotalPoints = Math.round((currentPoints / totalPossiblePoints) * 100);
+        // Get all existing quiz results to calculate total earned points
+        const existingResults = progress?.exerciseResults || [];
+        const existingPoints = existingResults.reduce((total, result) => total + (result.points || 0), 0);
+        const totalEarnedPoints = existingPoints + points;
+        currentTotalPoints = Math.round((totalEarnedPoints / totalPossiblePoints) * 100);
       }
       
       // Ensure score is within valid range
@@ -276,7 +285,7 @@ export default function ExercisePage() {
         studentId: JSON.parse(localStorage.getItem('user') || '{}')._id,
         moduleId: moduleId,
         currentStep: nextStep,
-        status: newStatus,
+        status: shouldStartProgress ? 'in-progress' : newStatus,
         score: currentTotalPoints, // Always send a valid score
         timeSpent: (progress?.timeSpent || 0) + timeSpent,
         exerciseResult: exerciseResult
