@@ -188,6 +188,7 @@ router.post('/', [
     if (req.body.content) {
       try {
         content = JSON.parse(req.body.content);
+        console.log('Received content:', JSON.stringify(content, null, 2));
       } catch (error) {
         return res.status(400).json({ error: 'Invalid content format' });
       }

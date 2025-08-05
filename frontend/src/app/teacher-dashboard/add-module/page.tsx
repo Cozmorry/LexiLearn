@@ -23,7 +23,13 @@ interface ModuleFormData {
     type: 'text' | 'interactive' | 'quiz';
     data: string;
     order: number;
-    quizData: {
+    quizData?: {
+      question: string;
+      options: string[];
+      correctAnswer: number;
+      points: number;
+    };
+    comprehensionQuestion?: {
       question: string;
       options: string[];
       correctAnswer: number;
@@ -107,6 +113,7 @@ export default function AddModulePage() {
       });
 
       // Add content as JSON string
+      console.log('Submitting content:', formData.content);
       submitData.append('content', JSON.stringify(formData.content));
 
 
@@ -505,6 +512,137 @@ export default function AddModulePage() {
                                rows={item.type === 'text' ? 4 : 8}
                                className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
                              />
+                             
+                             {item.type === 'text' && (
+                               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                                 <div className="flex items-center justify-between mb-3">
+                                   <h4 className="text-sm font-medium text-gray-900">Comprehension Question (Optional)</h4>
+                                   <button
+                                     type="button"
+                                     onClick={() => {
+                                       const newContent = [...formData.content];
+                                       if (newContent[index].comprehensionQuestion) {
+                                         delete newContent[index].comprehensionQuestion;
+                                       } else {
+                                         newContent[index] = {
+                                           ...newContent[index],
+                                           comprehensionQuestion: {
+                                             question: '',
+                                             options: ['', '', '', ''],
+                                             correctAnswer: 0,
+                                             points: 10
+                                           }
+                                         };
+                                       }
+                                       setFormData(prev => ({ ...prev, content: newContent }));
+                                     }}
+                                     className="text-sm text-[#4798ea] hover:text-[#3a7bc8]"
+                                   >
+                                     {item.comprehensionQuestion ? 'Remove Question' : 'Add Question'}
+                                   </button>
+                                 </div>
+                                 
+                                 {item.comprehensionQuestion && (
+                                   <div className="space-y-3">
+                                     <div>
+                                       <label className="block text-sm font-medium text-gray-700 mb-1">
+                                         Question
+                                       </label>
+                                       <textarea
+                                         value={item.comprehensionQuestion.question}
+                                         onChange={(e) => {
+                                           const newContent = [...formData.content];
+                                           newContent[index] = {
+                                             ...newContent[index],
+                                             comprehensionQuestion: {
+                                               ...newContent[index].comprehensionQuestion!,
+                                               question: e.target.value
+                                             }
+                                           };
+                                           setFormData(prev => ({ ...prev, content: newContent }));
+                                         }}
+                                         placeholder="Enter a comprehension question..."
+                                         rows={2}
+                                         className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                       />
+                                     </div>
+                                     
+                                     <div>
+                                       <label className="block text-sm font-medium text-gray-700 mb-2">
+                                         Options
+                                       </label>
+                                       {item.comprehensionQuestion.options.map((option, optionIndex) => (
+                                         <div key={optionIndex} className="flex items-center gap-2 mb-2">
+                                           <input
+                                             type="radio"
+                                             name={`comprehension-correct-${index}`}
+                                             checked={item.comprehensionQuestion.correctAnswer === optionIndex}
+                                             onChange={() => {
+                                               const newContent = [...formData.content];
+                                               newContent[index] = {
+                                                 ...newContent[index],
+                                                 comprehensionQuestion: {
+                                                   ...newContent[index].comprehensionQuestion!,
+                                                   correctAnswer: optionIndex
+                                                 }
+                                               };
+                                               setFormData(prev => ({ ...prev, content: newContent }));
+                                             }}
+                                             className="text-[#4798ea] focus:ring-[#4798ea]"
+                                             aria-label={`Mark option ${optionIndex + 1} as correct answer`}
+                                           />
+                                                                                        <input
+                                               type="text"
+                                               value={option}
+                                               onChange={(e) => {
+                                                 const newContent = [...formData.content];
+                                                 const options = [...(newContent[index].comprehensionQuestion?.options || ['', '', '', ''])];
+                                                 options[optionIndex] = e.target.value;
+                                                 newContent[index] = {
+                                                   ...newContent[index],
+                                                   comprehensionQuestion: {
+                                                     ...newContent[index].comprehensionQuestion!,
+                                                     options
+                                                   }
+                                                 };
+                                                 setFormData(prev => ({ ...prev, content: newContent }));
+                                               }}
+                                               placeholder={`Option ${optionIndex + 1}`}
+                                               className="flex-1 px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                               aria-label={`Comprehension question option ${optionIndex + 1}`}
+                                             />
+                                         </div>
+                                       ))}
+                                     </div>
+                                     
+                                     <div>
+                                       <label className="block text-sm font-medium text-gray-700 mb-1">
+                                         Points
+                                       </label>
+                                       <input
+                                         type="number"
+                                         value={item.comprehensionQuestion.points}
+                                         onChange={(e) => {
+                                           const newContent = [...formData.content];
+                                           newContent[index] = {
+                                             ...newContent[index],
+                                             comprehensionQuestion: {
+                                               ...newContent[index].comprehensionQuestion!,
+                                               points: parseInt(e.target.value) || 10
+                                             }
+                                           };
+                                           setFormData(prev => ({ ...prev, content: newContent }));
+                                         }}
+                                         min="1"
+                                         max="100"
+                                         className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                         aria-label="Comprehension question points"
+                                       />
+                                     </div>
+                                   </div>
+                                 )}
+                               </div>
+                             )}
                            </>
                          )}
                       </div>

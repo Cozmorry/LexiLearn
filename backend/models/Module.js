@@ -82,6 +82,15 @@ const moduleSchema = new mongoose.Schema({
           type: Number,
           default: 10
         }
+      },
+      comprehensionQuestion: {
+        question: String,
+        options: [String],
+        correctAnswer: Number,
+        points: {
+          type: Number,
+          default: 10
+        }
       }
     }],
     required: [true, 'Module content is required']

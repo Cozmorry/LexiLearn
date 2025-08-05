@@ -242,9 +242,32 @@ export default function StudentDashboard() {
   return (
     <div className="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden" style={{ fontFamily: '"Plus Jakarta Sans", "Noto Sans", sans-serif' }}>
       <div className="layout-container flex h-full grow flex-col">
-        <div className="gap-1 px-6 flex flex-1 justify-center py-5">
+        <div className="gap-1 px-6 flex flex-1 justify-center py-5 relative">
           <StudentNavigationBar />
           <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
+            {/* Logout Button - Bottom Left of Page */}
+            <div className="absolute bottom-4 left-6 z-10">
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="flex items-center gap-2 px-4 py-2 bg-[#f0f2f4] text-[#111418] rounded-lg text-sm font-medium hover:bg-[#e1e5e9] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Logout from student dashboard"
+              >
+                {isLoggingOut ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-[#111418] border-t-transparent rounded-full animate-spin"></div>
+                    <span>Logging out...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 256 256">
+                      <path d="M112,216a8,8,0,0,1-8,8H48a16,16,0,0,1-16-16V48A16,16,0,0,1,48,32h56a8,8,0,0,1,0,16H48V208h56A8,8,0,0,1,112,216Zm109.66-93.66-40-40a8,8,0,0,0-11.32,11.32L196.69,120H104a8,8,0,0,0,0,16h92.69l-26.35,26.34a8,8,0,0,0,11.32,11.32l40-40A8,8,0,0,0,221.66,122.34Z"></path>
+                    </svg>
+                    <span>Logout</span>
+                  </>
+                )}
+              </button>
+            </div>
             {/* Welcome Section */}
             <div className="flex flex-wrap justify-between gap-3 p-4">
               <div className="flex min-w-72 flex-col gap-3">
@@ -320,24 +343,7 @@ export default function StudentDashboard() {
               </div>
             )}
             
-            {/* Logout Button */}
-            <div className="flex px-4 py-3 justify-end">
-              <button
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-xl h-10 px-4 bg-[#f0f2f4] text-[#111418] text-sm font-bold leading-normal tracking-[0.015em] hover:bg-[#e1e5e9] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Logout from student dashboard"
-              >
-                {isLoggingOut ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-[#111418] border-t-transparent rounded-full animate-spin"></div>
-                    Logging out...
-                  </div>
-                ) : (
-                  <span className="truncate">Logout</span>
-                )}
-              </button>
-            </div>
+
           </div>
         </div>
         <Footer />

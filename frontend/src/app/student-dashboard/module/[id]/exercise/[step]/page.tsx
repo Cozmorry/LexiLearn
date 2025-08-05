@@ -32,6 +32,12 @@ interface Module {
       correctAnswer: number;
       points: number;
     };
+    comprehensionQuestion?: {
+      question: string;
+      options: string[];
+      correctAnswer: number;
+      points: number;
+    };
   }>;
   exercises: Array<{
     type: 'multiple-choice' | 'fill-blank' | 'matching' | 'drag-drop' | 'typing';
@@ -64,6 +70,8 @@ export default function ExercisePage() {
   const [showResults, setShowResults] = useState(false);
   const [quizScore, setQuizScore] = useState(0);
   const [timeSpent, setTimeSpent] = useState(0);
+  const [showComprehensionQuestion, setShowComprehensionQuestion] = useState(false);
+  const [comprehensionAnswer, setComprehensionAnswer] = useState<string>('');
   
   const router = useRouter();
   const params = useParams();
@@ -166,6 +174,11 @@ export default function ExercisePage() {
   const currentExercise = module?.content[currentStep];
   const isLastExercise = currentStep === (module?.content.length || 0) - 1;
   const isQuiz = currentExercise?.type === 'quiz';
+  
+  // Debug logging
+  console.log('Current exercise:', currentExercise);
+  console.log('Comprehension question:', currentExercise?.comprehensionQuestion);
+  console.log('Show comprehension question:', showComprehensionQuestion);
 
   const handleAnswerSelect = (answer: string) => {
     if (isQuiz) {
@@ -177,6 +190,13 @@ export default function ExercisePage() {
     try {
       setIsSubmitting(true);
       
+      // Check if this text content has a comprehension question
+      if (currentExercise?.comprehensionQuestion && !showComprehensionQuestion) {
+        setShowComprehensionQuestion(true);
+        setIsSubmitting(false);
+        return;
+      }
+      
       // Update progress to next step or complete
       const nextStep = isLastExercise ? (module?.content.length || 0) : currentStep + 1;
       const newStatus = isLastExercise ? 'completed' : 'in-progress';
@@ -184,12 +204,24 @@ export default function ExercisePage() {
       // If this is the first exercise (step 0) and status is not-started, change to in-progress
       const shouldStartProgress = currentStep === 0 && progress?.status === 'not-started';
       
+      // Calculate points for comprehension question if answered
+      let comprehensionPoints = 0;
+      let comprehensionScore = 0;
+      if (currentExercise?.comprehensionQuestion && comprehensionAnswer) {
+        const correctAnswer = currentExercise.comprehensionQuestion.options[currentExercise.comprehensionQuestion.correctAnswer];
+        const isCorrect = comprehensionAnswer === correctAnswer;
+        comprehensionPoints = isCorrect ? currentExercise.comprehensionQuestion.points : 0;
+        // Calculate score as percentage (100% if correct, 0% if incorrect)
+        comprehensionScore = isCorrect ? 100 : 0;
+      }
+      
       const progressData = {
         studentId: JSON.parse(localStorage.getItem('user') || '{}')._id,
         moduleId: moduleId,
         currentStep: nextStep,
         status: shouldStartProgress ? 'in-progress' : newStatus,
-        timeSpent: (progress?.timeSpent || 0) + timeSpent
+        timeSpent: (progress?.timeSpent || 0) + timeSpent,
+        score: comprehensionScore // Use percentage score instead of raw points
       };
 
       const response = await progressAPI.updateProgress(progressData);
@@ -512,14 +544,13 @@ export default function ExercisePage() {
               ) : (
                 // Exercise Content
                 <div>
-                                     <h1 className="text-[#111418] text-2xl font-bold mb-6">
-                     {isQuiz ? currentExercise.quizData?.question : currentExercise.data}
-                   </h1>
-
-                   {isQuiz ? (
-                     // Quiz Exercise
-                     <div className="space-y-4">
-                       {currentExercise.quizData?.options?.map((option, index) => (
+                                                       {isQuiz ? (
+                    // Quiz Exercise
+                    <div className="space-y-4">
+                      <h1 className="text-[#111418] text-2xl font-bold mb-6">
+                        {currentExercise.quizData?.question}
+                      </h1>
+                      {currentExercise.quizData?.options?.map((option, index) => (
                         <label
                           key={index}
                           className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-colors ${
@@ -558,20 +589,65 @@ export default function ExercisePage() {
                       </button>
                     </div>
                   ) : (
-                                         // Text/Reading Exercise
-                     <div className="space-y-6">
-                       <div className="bg-[#f8f9fa] p-6 rounded-xl">
-                         <div className="prose max-w-none">
-                           <div dangerouslySetInnerHTML={{ __html: currentExercise.data }} />
-                         </div>
-                       </div>
+                    // Text/Reading Exercise
+                    <div className="space-y-6">
+                      <div className="bg-[#f8f9fa] p-6 rounded-xl">
+                        <div className="prose max-w-none text-[#111418] prose-p:text-[#111418] prose-strong:text-[#111418] prose-em:text-[#111418]">
+                          <div dangerouslySetInnerHTML={{ __html: currentExercise.data }} />
+                        </div>
+                      </div>
+                      
+                      {showComprehensionQuestion ? (
+                        // Comprehension Question
+                        <div className="bg-white border border-[#dde0e4] rounded-xl p-6">
+                          <h3 className="text-[#111418] text-lg font-semibold mb-4">
+                            Comprehension Check
+                          </h3>
+                          <p className="text-[#637588] mb-4">
+                            {currentExercise.comprehensionQuestion?.question || 'No question found'}
+                          </p>
+                          <div className="space-y-3">
+                            {(currentExercise.comprehensionQuestion?.options || ['Option 1', 'Option 2', 'Option 3', 'Option 4']).map((option, index) => (
+                              <label
+                                key={index}
+                                className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-colors ${
+                                  comprehensionAnswer === option
+                                    ? 'border-[#4798ea] bg-[#f0f8ff]'
+                                    : 'border-[#dde0e4] hover:border-[#4798ea]'
+                                }`}
+                              >
+                                <input
+                                  type="radio"
+                                  name="comprehension"
+                                  value={option}
+                                  checked={comprehensionAnswer === option}
+                                  onChange={(e) => setComprehensionAnswer(e.target.value)}
+                                  className="sr-only"
+                                />
+                                <div className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
+                                  comprehensionAnswer === option
+                                    ? 'border-[#4798ea] bg-[#4798ea]'
+                                    : 'border-[#dde0e4]'
+                                }`}>
+                                  {comprehensionAnswer === option && (
+                                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                                  )}
+                                </div>
+                                <span className="text-[#111418]">{option}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                       
                       <button
                         onClick={handleMarkAsComplete}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || (showComprehensionQuestion && !comprehensionAnswer)}
                         className="w-full px-6 py-3 bg-[#4798ea] text-white rounded-xl font-bold hover:bg-[#3a7bc8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {isSubmitting ? 'Updating...' : 'Mark as Complete'}
+                        {isSubmitting ? 'Updating...' : 
+                         showComprehensionQuestion ? 'Submit Answer & Continue' : 
+                         'Mark as Complete'}
                       </button>
                     </div>
                   )}
