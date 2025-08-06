@@ -43,8 +43,9 @@ const VideoProgress: React.FC<VideoProgressProps> = ({
         onProgressUpdate(newProgress);
       }
 
-      // Check if video is completed (90% or more watched)
-      if (newProgress >= 90 && !isCompleted) {
+      // Check if video is completed (exactly 100% watched)
+      if (newProgress >= 100 && !isCompleted) {
+        console.log('VideoProgress: Video reached 100%, marking as completed');
         markAsCompleted();
       }
 
@@ -61,6 +62,7 @@ const VideoProgress: React.FC<VideoProgressProps> = ({
   }, [progress, videoId, studentId, onProgressUpdate, isCompleted]);
 
   const markAsCompleted = () => {
+    console.log('VideoProgress: markAsCompleted called');
     setIsCompleted(true);
     setProgress(100);
     const completionKey = `video-completed-${videoId}-${studentId}`;
@@ -68,6 +70,7 @@ const VideoProgress: React.FC<VideoProgressProps> = ({
     console.log('VideoProgress: Marked as completed:', completionKey);
     
     if (onComplete) {
+      console.log('VideoProgress: Calling onComplete callback');
       onComplete();
     }
   };
@@ -133,7 +136,7 @@ const VideoProgress: React.FC<VideoProgressProps> = ({
 
   const getProgressLabel = (progress: number) => {
     if (isCompleted) return 'Completed';
-    if (progress >= 90) return 'Almost Complete';
+    if (progress >= 95) return 'Almost Complete';
     if (progress >= 70) return 'Good Progress';
     if (progress >= 50) return 'Halfway There';
     if (progress >= 25) return 'Getting Started';
@@ -165,12 +168,12 @@ const VideoProgress: React.FC<VideoProgressProps> = ({
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="text-sm font-medium">Video completed</span>
+            <span className="text-sm font-medium">Video completed - Redirecting...</span>
           </div>
         </div>
       )}
       
-      {!isCompleted && progress > 0 && (
+      {!isCompleted && progress > 0 && progress < 100 && (
         <div className="mt-3">
           <button
             onClick={markAsCompleted}

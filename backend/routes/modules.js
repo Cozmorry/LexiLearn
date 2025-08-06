@@ -26,7 +26,7 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 100 * 1024 * 1024 // 100MB limit
   },
   fileFilter: function (req, file, cb) {
     if (file.fieldname === 'photos') {
@@ -51,7 +51,7 @@ const upload = multer({
 const handleMulterError = (error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
+      return res.status(400).json({ error: 'File too large. Maximum size is 100MB.' });
     }
     if (error.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json({ error: 'Too many files uploaded.' });
@@ -249,13 +249,17 @@ router.post('/', [
 router.put('/:id', [
   protect,
   isTeacher,
+  upload.fields([
+    { name: 'photos', maxCount: 10 },
+    { name: 'videos', maxCount: 10 }
+  ]),
   body('title').optional().trim().isLength({ min: 3, max: 100 }).withMessage('Title must be between 3 and 100 characters'),
   body('description').optional().trim().isLength({ min: 10, max: 500 }).withMessage('Description must be between 10 and 500 characters'),
-  body('category').optional().isIn(['reading', 'spelling', 'comprehension', 'writing', 'vocabulary']).withMessage('Invalid category'),
-  body('difficulty').optional().isIn(['beginner', 'intermediate', 'advanced']).withMessage('Invalid difficulty'),
-  body('gradeLevel').optional().isIn(['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th']).withMessage('Invalid grade level'),
+  body('category').optional().isIn(['Reading', 'Writing', 'Grammar', 'Vocabulary', 'Comprehension', 'Phonics', 'Literature', 'Creative Writing']).withMessage('Invalid category'),
+  body('difficulty').optional().isIn(['Beginner', 'Intermediate', 'Advanced']).withMessage('Invalid difficulty'),
+  body('gradeLevel').optional().isIn(['1', '2', '3']).withMessage('Invalid grade level'),
   body('isActive').optional().isBoolean().withMessage('isActive must be boolean')
-], async (req, res) => {
+], handleMulterError, async (req, res) => {
   try {
     // Check for validation errors
     const errors = validationResult(req);
@@ -274,9 +278,91 @@ router.put('/:id', [
       return res.status(403).json({ error: 'Not authorized to update this module' });
     }
 
+    // Process uploaded files
+    let photos = [];
+    let videos = [];
+    let content = module.content || [];
+
+    // Process photos
+    if (req.files && req.files.photos) {
+      photos = req.files.photos.map(photo => ({
+        filename: photo.filename,
+        originalName: photo.originalname,
+        path: photo.path,
+        mimetype: photo.mimetype,
+        size: photo.size
+      }));
+      
+      // Add photo content to existing content
+      const photoContent = photos.map((photo, index) => ({
+        type: 'image',
+        data: photo.filename,
+        order: content.length + index + 1,
+        imageInfo: {
+          originalName: photo.originalName,
+          mimetype: photo.mimetype,
+          size: photo.size
+        }
+      }));
+      
+      // Add photo content to existing content
+      content = [...content, ...photoContent];
+    }
+
+    // Process videos
+    if (req.files && req.files.videos) {
+      videos = req.files.videos.map(video => ({
+        filename: video.filename,
+        originalName: video.originalname,
+        path: video.path,
+        mimetype: video.mimetype,
+        size: video.size
+      }));
+      
+      // Add video content to existing content
+      const videoContent = videos.map((video, index) => ({
+        type: 'video',
+        data: video.filename,
+        order: content.length + index + 1,
+        videoInfo: {
+          originalName: video.originalName,
+          mimetype: video.mimetype,
+          size: video.size
+        }
+      }));
+      
+      // Add video content to existing content
+      content = [...content, ...videoContent];
+    }
+
+    // Parse exercises from JSON string if provided
+    let exercises = module.exercises || [];
+    if (req.body.exercises) {
+      try {
+        exercises = JSON.parse(req.body.exercises);
+      } catch (error) {
+        return res.status(400).json({ error: 'Invalid exercises format' });
+      }
+    }
+
+    // Prepare update data
+    const updateData = {
+      ...req.body,
+      content,
+      exercises
+    };
+
+    // Only add photos/videos if new files were uploaded
+    if (photos.length > 0) {
+      updateData.photos = photos;
+    }
+    if (videos.length > 0) {
+      updateData.videos = videos;
+    }
+
     const updatedModule = await Module.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     );
 

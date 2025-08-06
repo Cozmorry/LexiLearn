@@ -80,6 +80,9 @@ export default function ExercisePage() {
   const [showComprehensionQuestion, setShowComprehensionQuestion] = useState(false);
   const [comprehensionAnswer, setComprehensionAnswer] = useState<string>('');
   const [videoProgress, setVideoProgress] = useState(0);
+  const [showVideoCompletion, setShowVideoCompletion] = useState(false);
+  const [videoCompleted, setVideoCompleted] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
   
   const router = useRouter();
   const params = useParams();
@@ -118,6 +121,16 @@ export default function ExercisePage() {
     try {
       setLoading(true);
       setError('');
+      setSelectedAnswers([]);
+      setShowResults(false);
+      setQuizScore(0);
+      setTimeSpent(0);
+      setShowComprehensionQuestion(false);
+      setComprehensionAnswer('');
+      setVideoProgress(0);
+      setShowVideoCompletion(false);
+      setVideoCompleted(false);
+      setIsNavigating(false);
 
       const [moduleData, progressData] = await Promise.all([
         moduleAPI.getModule(moduleId),
@@ -192,11 +205,24 @@ export default function ExercisePage() {
   };
 
   const handleMarkAsComplete = async () => {
+    console.log('handleMarkAsComplete called');
+    console.log('Current exercise:', currentExercise);
+    console.log('Show comprehension question:', showComprehensionQuestion);
+    console.log('Is last exercise:', isLastExercise);
+    
+    // Prevent multiple navigation attempts
+    if (isNavigating) {
+      console.log('Navigation already in progress, skipping');
+      return;
+    }
+    
     try {
       setIsSubmitting(true);
+      setIsNavigating(true);
       
-      // Check if this text content has a comprehension question
+      // Check if this content has a comprehension question (for both text and video exercises)
       if (currentExercise?.comprehensionQuestion && !showComprehensionQuestion) {
+        console.log('Showing comprehension question for exercise');
         setShowComprehensionQuestion(true);
         setIsSubmitting(false);
         return;
@@ -206,10 +232,12 @@ export default function ExercisePage() {
       const nextStep = isLastExercise ? (module?.content.length || 0) : currentStep + 1;
       const newStatus = isLastExercise ? 'completed' : 'in-progress';
       
+      console.log('Next step:', nextStep, 'New status:', newStatus);
+      
       // If this is the first exercise (step 0) and status is not-started, change to in-progress
       const shouldStartProgress = currentStep === 0 && progress?.status === 'not-started';
       
-      // Calculate points for comprehension question if answered
+      // Calculate points for comprehension question if answered (for both text and video exercises)
       let comprehensionPoints = 0;
       let comprehensionScore = 0;
       if (currentExercise?.comprehensionQuestion && comprehensionAnswer) {
@@ -229,15 +257,41 @@ export default function ExercisePage() {
         score: comprehensionScore // Use percentage score instead of raw points
       };
 
-      const response = await progressAPI.updateProgress(progressData);
-      setProgress(response.progress);
+      console.log('Updating progress with data:', progressData);
+      try {
+        const response = await progressAPI.updateProgress(progressData);
+        console.log('Progress update successful:', response);
+        setProgress(response.progress);
+      } catch (apiError) {
+        console.error('Progress update failed:', apiError);
+        // Continue with navigation even if API fails
+        console.log('Continuing with navigation despite API error');
+      }
 
       if (isLastExercise) {
         // Module completed
-        router.push(`/student-dashboard/module/${moduleId}?completed=true`);
+        console.log('Module completed, redirecting to module overview');
+        console.log('Router object:', router);
+        try {
+          await router.push(`/student-dashboard/module/${moduleId}?completed=true`);
+          console.log('Navigation successful to module overview');
+        } catch (navError) {
+          console.error('Navigation error:', navError);
+          // Fallback: try window.location
+          window.location.href = `/student-dashboard/module/${moduleId}?completed=true`;
+        }
       } else {
         // Move to next exercise
-        router.push(`/student-dashboard/module/${moduleId}/exercise/${nextStep}`);
+        console.log('Moving to next exercise:', nextStep);
+        console.log('Router object:', router);
+        try {
+          await router.push(`/student-dashboard/module/${moduleId}/exercise/${nextStep}`);
+          console.log('Navigation successful to next exercise');
+        } catch (navError) {
+          console.error('Navigation error:', navError);
+          // Fallback: try window.location
+          window.location.href = `/student-dashboard/module/${moduleId}/exercise/${nextStep}`;
+        }
       }
     } catch (error) {
       console.error('Error marking as complete:', error);
@@ -608,14 +662,142 @@ export default function ExercisePage() {
                               setVideoProgress(progress);
                             }}
                             onComplete={() => {
-                              // Auto-advance after video completion
-                              setTimeout(() => {
-                                handleMarkAsComplete();
-                              }, 1000);
+                              console.log('VideoPlayer onComplete triggered');
+                              // Prevent multiple completion triggers
+                              if (!videoCompleted) {
+                                setVideoCompleted(true);
+                                // Show completion notification
+                                setShowVideoCompletion(true);
+                                
+                                // Check if there's a comprehension question
+                                if (currentExercise?.comprehensionQuestion) {
+                                  console.log('Video completed, showing comprehension question');
+                                  setTimeout(() => {
+                                    setShowVideoCompletion(false);
+                                    setShowComprehensionQuestion(true);
+                                  }, 1000);
+                                } else {
+                                  // Auto-advance after video completion (no comprehension question)
+                                  setTimeout(() => {
+                                    console.log('Auto-advancing to next step');
+                                    setShowVideoCompletion(false);
+                                    handleMarkAsComplete();
+                                  }, 1000);
+                                  
+                                  // Fallback: force navigation after 3 seconds if stuck
+                                  setTimeout(() => {
+                                    console.log('Fallback: forcing navigation');
+                                    if (isLastExercise) {
+                                      router.push(`/student-dashboard/module/${moduleId}?completed=true`);
+                                    } else {
+                                      router.push(`/student-dashboard/module/${moduleId}/exercise/${currentStep + 1}`);
+                                    }
+                                  }, 3000);
+                                }
+                              }
                             }}
                           />
                         </div>
                       </div>
+                      
+                      {/* Video Completion Notification */}
+                      {showVideoCompletion && (
+                        <div className="fixed top-4 right-4 z-50">
+                          <div className="bg-white rounded-xl p-6 shadow-lg border border-green-200 max-w-sm">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              </div>
+                              <div className="flex-1">
+                                <h3 className="text-sm font-semibold text-gray-900">Video Completed!</h3>
+                                <p className="text-xs text-gray-600">Redirecting to next step...</p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  setShowVideoCompletion(false);
+                                  handleMarkAsComplete();
+                                }}
+                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                                aria-label="Close notification"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Completion Navigation Button */}
+                      {videoCompleted && !showVideoCompletion && (
+                        <div className="fixed bottom-4 right-4 z-50">
+                          <div className="bg-green-500 rounded-xl p-4 shadow-lg">
+                            <div className="text-white text-sm">
+                              <p className="font-semibold mb-2">Video Completed!</p>
+                              <p className="mb-3">Ready to continue to the next step.</p>
+                              <div className="space-y-2">
+                                <button
+                                  onClick={async () => {
+                                    if (isNavigating) {
+                                      console.log('Navigation already in progress');
+                                      return;
+                                    }
+                                    console.log('Manual navigation to next step');
+                                    setIsNavigating(true);
+                                    
+                                    // First update progress, then navigate
+                                    try {
+                                      const nextStep = isLastExercise ? (module?.content.length || 0) : currentStep + 1;
+                                      const newStatus = isLastExercise ? 'completed' : 'in-progress';
+                                      
+                                      const progressData = {
+                                        studentId: JSON.parse(localStorage.getItem('user') || '{}')._id,
+                                        moduleId: moduleId,
+                                        currentStep: nextStep,
+                                        status: newStatus,
+                                        timeSpent: (progress?.timeSpent || 0) + timeSpent,
+                                        score: 100 // Video completion gives full score
+                                      };
+                                      
+                                      await progressAPI.updateProgress(progressData);
+                                      
+                                      if (isLastExercise) {
+                                        window.location.href = `/student-dashboard/module/${moduleId}?completed=true`;
+                                      } else {
+                                        window.location.href = `/student-dashboard/module/${moduleId}/exercise/${currentStep + 1}`;
+                                      }
+                                    } catch (error) {
+                                      console.error('Error updating progress:', error);
+                                      // Navigate anyway
+                                      if (isLastExercise) {
+                                        window.location.href = `/student-dashboard/module/${moduleId}?completed=true`;
+                                      } else {
+                                        window.location.href = `/student-dashboard/module/${moduleId}/exercise/${currentStep + 1}`;
+                                      }
+                                    }
+                                  }}
+                                  disabled={isNavigating}
+                                  className="w-full px-3 py-2 bg-white text-green-500 rounded-lg text-sm font-medium hover:bg-gray-100 transition-colors"
+                                >
+                                  Continue to Next Step
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    console.log('Manual navigation back to module');
+                                    window.location.href = `/student-dashboard/module/${moduleId}`;
+                                  }}
+                                  className="w-full px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
+                                >
+                                  Back to Module
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="bg-[#f8f9fa] p-6 rounded-xl">
@@ -632,6 +814,28 @@ export default function ExercisePage() {
                           moduleId={moduleId}
                           studentId={JSON.parse(localStorage.getItem('user') || '{}')._id || 'student'}
                           externalProgress={videoProgress}
+                          onComplete={() => {
+                            console.log('VideoProgress onComplete triggered');
+                            if (!videoCompleted) {
+                              setVideoCompleted(true);
+                              setShowVideoCompletion(true);
+                              
+                              // Check if there's a comprehension question
+                              if (currentExercise?.comprehensionQuestion) {
+                                console.log('Video completed, showing comprehension question from VideoProgress');
+                                setTimeout(() => {
+                                  setShowVideoCompletion(false);
+                                  setShowComprehensionQuestion(true);
+                                }, 1000);
+                              } else {
+                                setTimeout(() => {
+                                  console.log('Auto-advancing from VideoProgress');
+                                  setShowVideoCompletion(false);
+                                  handleMarkAsComplete();
+                                }, 1000);
+                              }
+                            }
+                          }}
                           className="h-fit"
                         />
                       </div>

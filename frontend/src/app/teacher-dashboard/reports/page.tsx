@@ -352,34 +352,52 @@ const TeacherReportsPage: React.FC = () => {
     const total = data.reduce((sum, item) => sum + item.value, 0);
     let currentAngle = 0;
     
+    // Filter out items with zero values to avoid rendering issues
+    const nonZeroData = data.filter(item => item.value > 0);
+    
+    console.log('PieChart data:', { data, total, nonZeroData });
+    
     return (
       <div className="bg-white rounded-xl border border-[#dce0e5] p-6">
         <h3 className="text-[#111418] text-lg font-semibold mb-4">{title}</h3>
         <div className="flex items-center justify-center">
           <div className="relative w-48 h-48">
-            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-              {data.map((item, index) => {
-                const percentage = (item.value / total) * 100;
-                const angle = (percentage / 100) * 360;
-                const x1 = 50 + 40 * Math.cos((currentAngle * Math.PI) / 180);
-                const y1 = 50 + 40 * Math.sin((currentAngle * Math.PI) / 180);
-                const x2 = 50 + 40 * Math.cos(((currentAngle + angle) * Math.PI) / 180);
-                const y2 = 50 + 40 * Math.sin(((currentAngle + angle) * Math.PI) / 180);
-                
-                const largeArcFlag = angle > 180 ? 1 : 0;
-                
-                currentAngle += angle;
-                
-                return (
-                  <path
-                    key={index}
-                    d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
-                    fill={item.color}
-                    className="transition-all duration-300 hover:opacity-80"
-                  />
-                );
-              })}
-            </svg>
+            {nonZeroData.length > 0 ? (
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                {nonZeroData.length === 1 && nonZeroData[0].value === total ? (
+                  // If only one category and it's 100%, show a full circle
+                  <circle cx="50" cy="50" r="40" fill={nonZeroData[0].color} />
+                ) : (
+                  // Otherwise show pie slices
+                  nonZeroData.map((item, index) => {
+                    const percentage = (item.value / total) * 100;
+                    const angle = (percentage / 100) * 360;
+                    const x1 = 50 + 40 * Math.cos((currentAngle * Math.PI) / 180);
+                    const y1 = 50 + 40 * Math.sin((currentAngle * Math.PI) / 180);
+                    const x2 = 50 + 40 * Math.cos(((currentAngle + angle) * Math.PI) / 180);
+                    const y2 = 50 + 40 * Math.sin(((currentAngle + angle) * Math.PI) / 180);
+                    
+                    const largeArcFlag = angle > 180 ? 1 : 0;
+                    
+                    currentAngle += angle;
+                    
+                    return (
+                      <path
+                        key={index}
+                        d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`}
+                        fill={item.color}
+                        className="transition-all duration-300 hover:opacity-80"
+                      />
+                    );
+                  })
+                )}
+              </svg>
+            ) : (
+              // Show empty circle when no data
+              <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#E5E7EB" strokeWidth="2" />
+              </svg>
+            )}
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
                 <div className="text-2xl font-bold text-[#111418]">{total}</div>
@@ -397,7 +415,7 @@ const TeacherReportsPage: React.FC = () => {
               ></div>
               <span className="text-sm text-[#111418]">{item.label}</span>
               <span className="text-sm text-[#637588] ml-auto">
-                {Math.round((item.value / total) * 100)}%
+                {total > 0 ? Math.round((item.value / total) * 100) : 0}%
               </span>
             </div>
           ))}
@@ -548,11 +566,25 @@ const TeacherReportsPage: React.FC = () => {
                     {/* Performance Distribution */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <PieChart 
-                        data={[
-                          { label: 'Excellent (90%+)', value: completedProgress.filter(p => p.score >= 90).length, color: '#10B981' },
-                          { label: 'Good (80-89%)', value: completedProgress.filter(p => p.score >= 80 && p.score < 90).length, color: '#F59E0B' },
-                          { label: 'Needs Improvement (<80%)', value: completedProgress.filter(p => p.score < 80).length, color: '#EF4444' }
-                        ]} 
+                        data={(() => {
+                          const excellentCount = completedProgress.filter(p => p.score >= 90).length;
+                          const goodCount = completedProgress.filter(p => p.score >= 80 && p.score < 90).length;
+                          const needsImprovementCount = completedProgress.filter(p => p.score < 80).length;
+                          
+                          console.log('PieChart data calculation:', {
+                            completedProgress: completedProgress.length,
+                            excellentCount,
+                            goodCount,
+                            needsImprovementCount,
+                            sampleScores: completedProgress.slice(0, 3).map(p => p.score)
+                          });
+                          
+                          return [
+                            { label: 'Excellent (90%+)', value: excellentCount, color: '#10B981' },
+                            { label: 'Good (80-89%)', value: goodCount, color: '#F59E0B' },
+                            { label: 'Needs Improvement (<80%)', value: needsImprovementCount, color: '#EF4444' }
+                          ];
+                        })()} 
                         title="Score Distribution" 
                       />
                       

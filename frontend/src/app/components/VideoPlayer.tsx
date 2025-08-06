@@ -32,6 +32,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showCustomControls, setShowCustomControls] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isCompleted, setIsCompleted] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -54,10 +55,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         console.log('VideoPlayer: Progress update:', progressPercent);
         onProgress(progressPercent);
       }
+
+      // Check if video is at 100% completion and trigger completion
+      if (progressPercent >= 100 && !isCompleted) {
+        // Small delay to ensure we're really at the end
+        setTimeout(() => {
+          if (onComplete) {
+            onComplete();
+          }
+        }, 100);
+      }
     };
 
     const handleEnded = () => {
       setIsPlaying(false);
+      setIsCompleted(true);
       // Ensure progress is set to 100% when video ends
       setProgress(100);
       if (onProgress) {
