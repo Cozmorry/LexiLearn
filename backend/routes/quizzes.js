@@ -17,9 +17,24 @@ router.get('/', protect, async (req, res) => {
     if (category) filter.category = category;
     if (difficulty) filter.difficulty = difficulty;
 
-    // If student, only show quizzes appropriate for their grade level
+    // If student, filter by grade level and show assigned quizzes or quizzes matching their grade
     if (req.user.role === 'student') {
-      filter.gradeLevel = req.user.grade;
+      // Convert student grade to quiz grade level format if needed
+      let studentGradeLevel = req.user.grade;
+      
+      // Build filter for students
+      const studentFilter = {
+        $or: [
+          { assignedTo: req.user._id }, // Quizzes specifically assigned to this student
+          { 
+            isActive: true,
+            gradeLevel: studentGradeLevel // Quizzes matching student's grade level
+          }
+        ]
+      };
+
+      // Merge with existing filters
+      Object.assign(filter, studentFilter);
     }
 
     const quizzes = await Quiz.find(filter)

@@ -76,12 +76,32 @@ router.get('/', protect, async (req, res) => {
     if (difficulty) filter.difficulty = difficulty;
     if (gradeLevel) filter.gradeLevel = gradeLevel;
 
-    // If student, only show assigned modules or general modules
+    // If student, filter by grade level and show assigned modules or modules matching their grade
     if (req.user.role === 'student') {
-      filter.$or = [
-        { assignedTo: req.user._id },
-        { isActive: true }
-      ];
+      // Convert student grade to module grade level format
+      let studentGradeLevel;
+      if (req.user.grade) {
+        // Handle different grade formats: '1st', '2nd', '3rd' -> '1', '2', '3'
+        if (req.user.grade.includes('st') || req.user.grade.includes('nd') || req.user.grade.includes('rd')) {
+          studentGradeLevel = req.user.grade.replace(/\D/g, ''); // Extract just the number
+        } else {
+          studentGradeLevel = req.user.grade;
+        }
+      }
+
+      // Build filter for students
+      const studentFilter = {
+        $or: [
+          { assignedTo: req.user._id }, // Modules specifically assigned to this student
+          { 
+            isActive: true,
+            gradeLevel: studentGradeLevel // Modules matching student's grade level
+          }
+        ]
+      };
+
+      // Merge with existing filters
+      Object.assign(filter, studentFilter);
     }
 
     const modules = await Module.find(filter)
@@ -281,7 +301,17 @@ router.put('/:id', [
     // Process uploaded files
     let photos = [];
     let videos = [];
-    let content = module.content || [];
+    let content = [];
+
+    // Parse content from JSON string if provided
+    if (req.body.content) {
+      try {
+        content = JSON.parse(req.body.content);
+        console.log('Received content:', JSON.stringify(content, null, 2));
+      } catch (error) {
+        return res.status(400).json({ error: 'Invalid content format' });
+      }
+    }
 
     // Process photos
     if (req.files && req.files.photos) {

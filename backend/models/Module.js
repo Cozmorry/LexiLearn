@@ -196,11 +196,14 @@ moduleSchema.statics.findByCategoryAndGrade = function(category, gradeLevel) {
 };
 
 // Static method to find modules for a specific student
-moduleSchema.statics.findForStudent = function(studentId) {
+moduleSchema.statics.findForStudent = function(studentId, gradeLevel) {
   return this.find({
     $or: [
       { assignedTo: studentId },
-      { isActive: true }
+      { 
+        isActive: true,
+        gradeLevel: gradeLevel
+      }
     ]
   }).populate('createdBy', 'name');
 };

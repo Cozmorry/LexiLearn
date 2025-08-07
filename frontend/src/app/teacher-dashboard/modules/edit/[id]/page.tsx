@@ -369,7 +369,7 @@ export default function EditModulePage() {
                       name="title"
                       value={formData.title}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600"
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
                       placeholder="Enter module title"
                       required
                     />
@@ -384,7 +384,7 @@ export default function EditModulePage() {
                       name="category"
                       value={formData.category}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600"
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
                       required
                       aria-label="Select category"
                     >
@@ -409,7 +409,7 @@ export default function EditModulePage() {
                       name="difficulty"
                       value={formData.difficulty}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600"
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
                       required
                       aria-label="Select difficulty"
                     >
@@ -429,7 +429,7 @@ export default function EditModulePage() {
                       name="gradeLevel"
                       value={formData.gradeLevel}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600"
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
                       required
                       aria-label="Select grade level"
                     >
@@ -450,7 +450,7 @@ export default function EditModulePage() {
                       name="estimatedTime"
                       value={formData.estimatedTime}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600"
+                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
                       placeholder="Enter estimated time"
                       min="1"
                       required
@@ -660,7 +660,7 @@ export default function EditModulePage() {
                               type="text"
                               value={item.quizData.question}
                               onChange={(e) => updateQuizData(index, 'question', e.target.value)}
-                              className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600"
+                              className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
                               placeholder="Enter question"
                             />
                           </div>
@@ -686,7 +686,7 @@ export default function EditModulePage() {
                                      id={`option-${index}-${optionIndex}`}
                                      value={option}
                                      onChange={(e) => updateQuizOption(index, optionIndex, e.target.value)}
-                                     className="flex-1 px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600"
+                                     className="flex-1 px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
                                      placeholder={`Option ${optionIndex + 1}`}
                                      aria-label={`Quiz option ${optionIndex + 1}`}
                                    />
@@ -703,7 +703,7 @@ export default function EditModulePage() {
                               type="number"
                               value={item.quizData.points}
                               onChange={(e) => updateQuizData(index, 'points', parseInt(e.target.value) || 1)}
-                              className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600"
+                              className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
                               placeholder="Enter points"
                               min="1"
                             />
