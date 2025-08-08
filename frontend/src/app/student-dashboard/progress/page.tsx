@@ -102,7 +102,7 @@ export default function StudentProgressPage() {
   };
 
   const getCategoryProgress = (category: string) => {
-    const categoryProgress = progress.filter(p => p.moduleId.category === category);
+    const categoryProgress = progress.filter(p => p.moduleId && p.moduleId.category === category);
     if (categoryProgress.length === 0) return 0;
     const completed = categoryProgress.filter(p => p.status === 'completed').length;
     return Math.round((completed / categoryProgress.length) * 100);
@@ -226,7 +226,7 @@ export default function StudentProgressPage() {
                 <div className="space-y-4">
                   {['Reading', 'Writing', 'Grammar', 'Vocabulary', 'Comprehension', 'Phonics'].map((category) => {
                     const categoryProgress = getCategoryProgress(category);
-                    const categoryModules = progress.filter(p => p.moduleId.category === category);
+                    const categoryModules = progress.filter(p => p.moduleId && p.moduleId.category === category);
                     
                     if (categoryModules.length === 0) return null;
                     
@@ -261,7 +261,7 @@ export default function StudentProgressPage() {
                         item.status === 'completed' ? 'bg-green-500' : 'bg-blue-500'
                       }`}></div>
                       <div className="flex-1">
-                        <div className="text-[#111418] font-medium">{item.moduleId.title}</div>
+                        <div className="text-[#111418] font-medium">{item.moduleId?.title || 'Unknown Module'}</div>
                         <div className="text-[#637588] text-sm">
                           {item.status === 'completed' ? 'Completed' : 'In Progress'} - {item.completionPercentage}%
                         </div>

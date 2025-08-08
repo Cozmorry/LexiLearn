@@ -83,7 +83,7 @@ const moduleSchema = new mongoose.Schema({
           default: 10
         }
       },
-      comprehensionQuestion: {
+      comprehensionQuestions: [{
         question: String,
         options: [String],
         correctAnswer: Number,
@@ -91,7 +91,7 @@ const moduleSchema = new mongoose.Schema({
           type: Number,
           default: 10
         }
-      }
+      }]
     }],
     required: [true, 'Module content is required']
   },

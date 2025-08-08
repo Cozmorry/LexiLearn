@@ -54,6 +54,8 @@ interface Progress {
   score: number;
   timeSpent: number;
   completionPercentage: number;
+  // Optional when the progress record is for a quiz instead of a module
+  quizId?: string | { _id: string };
 }
 
 interface Quiz {
@@ -85,26 +87,12 @@ interface Recommendation {
   color: string;
 }
 
-interface ExternalResource {
-  id: string;
-  title: string;
-  description: string;
-  url: string;
-  coverImage: string;
-  category: string;
-  difficulty: string;
-  estimatedTime: number;
-  source: string;
-  tags: string[];
-}
-
 export default function StudentDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [modules, setModules] = useState<Module[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [progress, setProgress] = useState<Progress[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
-  const [externalResources, setExternalResources] = useState<ExternalResource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -153,18 +141,15 @@ export default function StudentDashboard() {
       setQuizzes(quizzesData.quizzes || []);
       setProgress(progressData.progress || []);
       
-      // Generate daily recommendations
+      // Generate recommendations strictly from quiz performance
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
       const dailyRecommendations = generateDailyRecommendations(
         userData._id || 'default',
         progressData.progress || [],
-        modulesData.modules || []
+        modulesData.modules || [],
+        quizzesData.quizzes || []
       );
       setRecommendations(dailyRecommendations);
-      
-      // Generate external resources
-      const externalResources = generateExternalResources(userData._id || 'default');
-      setExternalResources(externalResources);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       setError('Failed to load dashboard data. Please try again.');
@@ -181,9 +166,7 @@ export default function StudentDashboard() {
     router.push(`/student-dashboard/quiz/${quizId}`);
   };
 
-  const handleExternalResourceClick = (url: string) => {
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
+  
 
   const handleAlphabetClick = () => {
     setShowAlphabetModal(true);
@@ -233,7 +216,7 @@ export default function StudentDashboard() {
   };
 
   const getProgressForModule = (moduleId: string) => {
-    return progress.find(p => p.moduleId._id === moduleId);
+    return progress.find(p => p.moduleId && p.moduleId._id === moduleId);
   };
 
   const getModuleImage = (module: Module) => {
@@ -272,124 +255,179 @@ export default function StudentDashboard() {
     return 'Start';
   };
 
-  const generateDailyRecommendations = (userId: string, userProgress: Progress[], availableModules: Module[]) => {
-    const today = new Date().toDateString();
-    const seed = userId + today; // Create unique seed for each user and day
-    
-    // Simple hash function to generate consistent recommendations
-    let hash = 0;
-    for (let i = 0; i < seed.length; i++) {
-      const char = seed.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // Convert to 32-bit integer
-    }
-    
+  const generateDailyRecommendations = (
+    userId: string,
+    userProgress: Progress[],
+    availableModules: Module[],
+    availableQuizzes: Quiz[]
+  ) => {
+    // Filter to quiz progress entries only
+    const quizProgress = (userProgress || []).filter((p) => p.quizId);
+
+    const getQuizId = (p: Progress) => {
+      if (!p.quizId) return undefined;
+      return typeof p.quizId === 'string' ? p.quizId : p.quizId._id;
+    };
+
     const recommendations: Recommendation[] = [];
-    
-    // Get user's weak areas based on progress
-    const completedModules = userProgress.filter(p => p.status === 'completed');
-    const inProgressModules = userProgress.filter(p => p.status === 'in-progress');
-    
-    // Recommendation 1: Continue in-progress module
-    if (inProgressModules.length > 0) {
-      const randomIndex = Math.abs(hash) % inProgressModules.length;
-      const module = availableModules.find(m => m._id === inProgressModules[randomIndex].moduleId._id);
-      if (module) {
+
+    // If no quiz performance yet, provide starter recommendations
+    if (quizProgress.length === 0) {
+      // Recommend first available modules
+      const starterModules = availableModules.slice(0, 2);
+      starterModules.forEach((module) => {
         recommendations.push({
-          id: `continue-${module._id}`,
-          title: `Continue: ${module.title}`,
-          description: `Pick up where you left off in this ${module.category.toLowerCase()} module.`,
-          type: 'module',
-          category: module.category,
-          difficulty: module.difficulty,
-          estimatedTime: module.estimatedDuration,
-          icon: '📚',
-          color: 'bg-blue-100 text-blue-800'
-        });
-      }
-    }
-    
-    // Recommendation 2: Try a new module in user's preferred category
-    const preferredCategories = completedModules.length > 0 
-      ? completedModules.map(p => availableModules.find(m => m._id === p.moduleId._id)?.category).filter(Boolean)
-      : ['Reading', 'Comprehension'];
-    
-    const availableNewModules = availableModules.filter(m => 
-      !userProgress.some(p => p.moduleId._id === m._id)
-    );
-    
-    if (availableNewModules.length > 0) {
-      const preferredCategory = preferredCategories[Math.abs(hash + 1) % preferredCategories.length] || 'Reading';
-      const categoryModules = availableNewModules.filter(m => m.category === preferredCategory);
-      const module = categoryModules.length > 0 
-        ? categoryModules[Math.abs(hash + 2) % categoryModules.length]
-        : availableNewModules[Math.abs(hash + 2) % availableNewModules.length];
-      
-      if (module) {
-        recommendations.push({
-          id: `new-${module._id}`,
-          title: `Try: ${module.title}`,
-          description: `Explore this ${module.category.toLowerCase()} module to build your skills.`,
+          id: `module-${module._id}`,
+          title: `Start Learning: ${module.title}`,
+          description: `Begin your learning journey with this ${module.category.toLowerCase()} module.`,
           type: 'module',
           category: module.category,
           difficulty: module.difficulty,
           estimatedTime: module.estimatedDuration,
           icon: '🚀',
-          color: 'bg-green-100 text-green-800'
+          color: 'bg-green-100 text-green-800',
+        });
+      });
+
+      // Recommend first available quiz
+      if (availableQuizzes.length > 0) {
+        const firstQuiz = availableQuizzes[0];
+        recommendations.push({
+          id: `quiz-${firstQuiz._id}`,
+          title: `Take Your First Quiz: ${firstQuiz.title}`,
+          description: `Test your knowledge with this ${firstQuiz.category.toLowerCase()} quiz.`,
+          type: 'quiz',
+          category: firstQuiz.category,
+          difficulty: firstQuiz.difficulty,
+          estimatedTime: firstQuiz.estimatedDuration,
+          icon: '🧪',
+          color: 'bg-blue-100 text-blue-800',
         });
       }
+
+      return recommendations;
     }
-    
-    // Recommendation 3: Alphabet Practice (always include)
-    recommendations.push({
-      id: 'alphabet-practice',
-      title: 'Alphabet Practice',
-      description: 'Practice the alphabet with audio pronunciation.',
-      type: 'alphabet',
-      category: 'Phonics',
-      difficulty: 'Beginner',
-      estimatedTime: 10,
-      icon: '🔤',
-      color: 'bg-indigo-100 text-indigo-800'
-    });
-    
-    // Recommendation 4: Daily tip based on user's progress
-    const tips = [
-      {
-        title: 'Reading Strategy',
-        description: 'Try reading aloud to improve comprehension and fluency.',
-        icon: '🎯',
-        color: 'bg-purple-100 text-purple-800'
-      },
-      {
-        title: 'Break It Down',
-        description: 'Take short breaks every 15 minutes to maintain focus.',
-        icon: '⏰',
-        color: 'bg-orange-100 text-orange-800'
-      },
-      {
-        title: 'Visual Learning',
-        description: 'Use highlighters and notes to organize information.',
-        icon: '✏️',
-        color: 'bg-pink-100 text-pink-800'
+
+    // Map quiz progress to quiz metadata (category, difficulty)
+    const progressWithQuizMeta = quizProgress
+      .map((p) => {
+        const qid = getQuizId(p);
+        const quiz = availableQuizzes.find((q) => q._id === qid);
+        if (!qid || !quiz) return null;
+        return {
+          progress: p,
+          quiz,
+        };
+      })
+      .filter(Boolean) as { progress: Progress; quiz: Quiz }[];
+
+    // Compute average score by category
+    const categoryScores: Record<string, { total: number; count: number; recentScores: number[] }> = {};
+    progressWithQuizMeta.forEach(({ progress, quiz }) => {
+      const category = quiz.category || 'General';
+      if (!categoryScores[category]) {
+        categoryScores[category] = { total: 0, count: 0, recentScores: [] };
       }
-    ];
-    
-    const tipIndex = Math.abs(hash + 3) % tips.length;
-    const tip = tips[tipIndex];
-    
-    recommendations.push({
-      id: `tip-${tipIndex}`,
-      title: tip.title,
-      description: tip.description,
-      type: 'tip',
-      category: 'Learning Strategy',
-      difficulty: 'Beginner',
-      estimatedTime: 5,
-      icon: tip.icon,
-      color: tip.color
+      categoryScores[category].total += progress.score || 0;
+      categoryScores[category].count += 1;
+      categoryScores[category].recentScores.push(progress.score || 0);
     });
+
+    const categoriesByWeakness = Object.entries(categoryScores)
+      .map(([category, { total, count, recentScores }]) => ({ 
+        category, 
+        avg: total / Math.max(count, 1),
+        recentAvg: recentScores.slice(-3).reduce((sum, score) => sum + score, 0) / Math.max(recentScores.slice(-3).length, 1)
+      }))
+      .sort((a, b) => a.recentAvg - b.recentAvg);
+
+    // 1) Recommend retaking quizzes with low scores (< 70)
+    const lowScoreAttempts = progressWithQuizMeta
+      .filter(({ progress }) => (progress.score || 0) < 70)
+      .slice(0, 2);
+    lowScoreAttempts.forEach(({ quiz }) => {
+      recommendations.push({
+        id: `quiz-${quiz._id}`,
+        title: `Retake: ${quiz.title}`,
+        description: `Improve your score in ${quiz.category.toLowerCase()}. Your last score was below 70%.`,
+        type: 'quiz',
+        category: quiz.category,
+        difficulty: quiz.difficulty,
+        estimatedTime: quiz.estimatedDuration,
+        icon: '🔁',
+        color: 'bg-red-100 text-red-800',
+      });
+    });
+
+    // 2) For weakest categories, recommend a related module to practice
+    const weakestCategories = categoriesByWeakness.slice(0, 2).map((c) => c.category);
+    weakestCategories.forEach((weakCat) => {
+      const candidateModules = availableModules.filter((m) => m.category === weakCat);
+      if (candidateModules.length > 0) {
+        const module = candidateModules[0];
+        const avgScore = categoryScores[weakCat]?.avg || 0;
+        recommendations.push({
+          id: `module-${module._id}`,
+          title: `Practice Module: ${module.title}`,
+          description: `Reinforce ${module.category.toLowerCase()} concepts. Your average score: ${Math.round(avgScore)}%.`,
+          type: 'module',
+          category: module.category,
+          difficulty: module.difficulty,
+          estimatedTime: module.estimatedDuration,
+          icon: '📘',
+          color: 'bg-orange-100 text-orange-800',
+        });
+      }
+    });
+
+    // 3) Suggest an easier quiz in the weakest category (if available)
+    weakestCategories.forEach((weakCat) => {
+      const quizzesInCategory = availableQuizzes.filter((q) => q.category === weakCat);
+      const takenQuizIds = new Set(progressWithQuizMeta.map(({ quiz }) => quiz._id));
+      const untakenQuizzes = quizzesInCategory.filter(q => !takenQuizIds.has(q._id));
+      
+      if (untakenQuizzes.length > 0) {
+        const quiz = untakenQuizzes[0];
+        recommendations.push({
+          id: `quiz-${quiz._id}`,
+          title: `Try Another Quiz: ${quiz.title}`,
+          description: `Focus on ${quiz.category.toLowerCase()} with another practice quiz.`,
+          type: 'quiz',
+          category: quiz.category,
+          difficulty: quiz.difficulty,
+          estimatedTime: quiz.estimatedDuration,
+          icon: '🧪',
+          color: 'bg-yellow-100 text-yellow-800',
+        });
+      }
+    });
+
+    // 4) If user is doing well, suggest advanced content
+    const strongCategories = categoriesByWeakness
+      .filter(c => c.recentAvg >= 80)
+      .slice(0, 1);
     
+    strongCategories.forEach((strongCat) => {
+      const advancedModules = availableModules.filter(m => 
+        m.category === strongCat.category && 
+        m.difficulty === 'Advanced'
+      );
+      if (advancedModules.length > 0) {
+        const module = advancedModules[0];
+        recommendations.push({
+          id: `module-${module._id}`,
+          title: `Advanced Challenge: ${module.title}`,
+          description: `You're excelling in ${module.category.toLowerCase()}! Try this advanced module.`,
+          type: 'module',
+          category: module.category,
+          difficulty: module.difficulty,
+          estimatedTime: module.estimatedDuration,
+          icon: '⭐',
+          color: 'bg-purple-100 text-purple-800',
+        });
+      }
+    });
+
     return recommendations;
   };
 
@@ -555,33 +593,115 @@ export default function StudentDashboard() {
                 </p>
               </div>
 
-              {/* Daily Recommendations */}
-              {recommendations.length > 0 && (
-                <div className="mb-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 bg-gradient-to-br from-[#4798ea] to-[#3a7bc8] rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                      </svg>
+              {/* Performance Summary */}
+              <div className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Total Quizzes Taken */}
+                  <div className="bg-white border border-[#dde0e4] rounded-xl p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-[#637588] text-xs">Quizzes Taken</p>
+                        <p className="text-[#111418] text-lg font-bold">
+                          {(() => {
+                            // Count standalone quizzes
+                            const standaloneQuizzes = (progress || []).filter(p => p.quizId).length;
+                            // Count quizzes within completed modules (estimate 1 quiz per completed module)
+                            const moduleQuizzes = (progress || []).filter(p => p.moduleId && p.status === 'completed').length;
+                            return standaloneQuizzes + moduleQuizzes;
+                          })()}
+                        </p>
+                      </div>
                     </div>
-                    <h2 className="text-[#111418] text-xl font-bold">Today's Recommendations</h2>
                   </div>
+
+                  {/* Average Score */}
+                  <div className="bg-white border border-[#dde0e4] rounded-xl p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                        <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-[#637588] text-xs">Average Score</p>
+                        <p className="text-[#111418] text-lg font-bold">
+                          {(() => {
+                            // Get standalone quiz scores
+                            const standaloneQuizProgress = (progress || []).filter(p => p.quizId);
+                            const standaloneScores = standaloneQuizProgress.map(p => p.score || 0);
+                            
+                            // Get module scores (completed modules likely have good scores)
+                            const completedModules = (progress || []).filter(p => p.moduleId && p.status === 'completed');
+                            const moduleScores = completedModules.map(p => p.score || 100); // Assume good scores for completed modules
+                            
+                            // Combine all scores
+                            const allScores = [...standaloneScores, ...moduleScores];
+                            
+                            if (allScores.length === 0) return 'N/A';
+                            const avgScore = allScores.reduce((sum, score) => sum + score, 0) / allScores.length;
+                            return `${Math.round(avgScore)}%`;
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Modules Completed */}
+                  <div className="bg-white border border-[#dde0e4] rounded-xl p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <svg className="w-5 h-5 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-[#637588] text-xs">Modules Completed</p>
+                        <p className="text-[#111418] text-lg font-bold">
+                          {(progress || []).filter(p => p.moduleId && p.status === 'completed').length}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Performance-Based Recommendations */}
+              <div className="mb-8">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 bg-gradient-to-br from-[#4798ea] to-[#3a7bc8] rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-[#111418] text-xl font-bold">Smart Recommendations</h2>
+                    <p className="text-[#637588] text-sm">Based on your performance and learning patterns</p>
+                  </div>
+                </div>
+                
+                {recommendations.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {recommendations.map((rec) => (
                       <div 
                         key={rec.id}
-                        className="bg-white border border-[#dde0e4] rounded-xl p-5 hover:shadow-lg transition-all duration-200 cursor-pointer"
+                        className="bg-white border border-[#dde0e4] rounded-xl p-5 hover:shadow-lg transition-all duration-200 cursor-pointer group"
                         onClick={() => {
                           if (rec.type === 'module' && rec.id.includes('-')) {
-                            const moduleId = rec.id.split('-')[1];
+                            const moduleId = rec.id.split('-').pop() as string;
                             handleModuleClick(moduleId);
-                          } else if (rec.type === 'alphabet') {
-                            handleAlphabetClick();
+                          } else if (rec.type === 'quiz' && rec.id.includes('-')) {
+                            const quizId = rec.id.split('-').pop() as string;
+                            handleQuizClick(quizId);
                           }
                         }}
                       >
                         <div className="flex items-start gap-3 mb-3">
-                          <div className="text-2xl">{rec.icon}</div>
+                          <div className="text-2xl group-hover:scale-110 transition-transform">{rec.icon}</div>
                           <div className="flex-1">
                             <h3 className="text-[#111418] font-semibold text-sm mb-1">{rec.title}</h3>
                             <p className="text-[#637588] text-xs mb-2">{rec.description}</p>
@@ -591,69 +711,32 @@ export default function StudentDashboard() {
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${rec.color}`}>
                             {rec.category}
                           </span>
-                          <span className="text-[#637588] text-xs">
-                            {rec.estimatedTime} min
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[#637588] text-xs">
+                              {rec.estimatedTime} min
+                            </span>
+                            <span className="text-[#637588] text-xs">
+                              {rec.difficulty}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
-              )}
-
-              {/* External Learning Resources */}
-              {externalResources.length > 0 && (
-                <div className="mb-8">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-8 h-8 bg-gradient-to-br from-[#f59e0b] to-[#d97706] rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                ) : (
+                  <div className="bg-white border border-[#dde0e4] rounded-xl p-8 text-center">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-[#4798ea]" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                       </svg>
                     </div>
-                    <h2 className="text-[#111418] text-xl font-bold">External Learning Resources</h2>
+                    <h3 className="text-[#111418] text-lg font-semibold mb-2">No recommendations yet</h3>
+                    <p className="text-[#637588] text-sm">Complete some quizzes to get personalized recommendations!</p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {externalResources.map((resource) => (
-                      <div 
-                        key={resource.id}
-                        className="bg-white border border-[#dde0e4] rounded-xl overflow-hidden hover:shadow-lg transition-all duration-200 cursor-pointer group"
-                        onClick={() => handleExternalResourceClick(resource.url)}
-                      >
-                        {/* Cover Image */}
-                        <div className="w-full h-48 relative overflow-hidden">
-                          <img 
-                            src={resource.coverImage}
-                            alt={resource.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=300&fit=crop';
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-                        </div>
-                        
-                        {/* Content */}
-                        <div className="p-5">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-[#637588] text-xs font-medium">{resource.source}</span>
-                            <span className="text-[#637588] text-xs">•</span>
-                            <span className="text-[#637588] text-xs">{resource.difficulty}</span>
-                          </div>
-                          <h3 className="text-[#111418] font-semibold text-sm mb-2 line-clamp-2">{resource.title}</h3>
-                          <p className="text-[#637588] text-xs mb-3 line-clamp-2">{resource.description}</p>
-                          <div className="flex items-center justify-between">
-                            <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">
-                              {resource.category}
-                            </span>
-                            <span className="text-[#637588] text-xs">{resource.estimatedTime} min</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* External Learning Resources removed per requirement */}
 
               {/* Assigned Modules */}
               <div className="mb-8">

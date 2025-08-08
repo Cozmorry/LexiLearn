@@ -21,13 +21,18 @@ interface Module {
   instructions?: string;
   assessment?: string;
   content: Array<{
-    type: 'text' | 'interactive' | 'quiz';
+    type: 'text' | 'interactive' | 'quiz' | 'video';
     data: string;
     quizData?: {
       question: string;
       options: string[];
       correctAnswer: number;
       points: number;
+    };
+    videoInfo?: {
+      originalName: string;
+      mimetype: string;
+      size: number;
     };
   }>;
   photos: Array<{
@@ -298,6 +303,7 @@ export default function ModuleDetailPage() {
                   <h2 className="text-gray-900 text-xl font-semibold mb-4">Module Content</h2>
                   
                   <div className="space-y-4">
+
                     {module.content.map((item, index) => (
                       <div key={index} className="border border-[#dce0e5] rounded-lg p-4">
                         <div className="flex items-center gap-2 mb-3">
@@ -313,6 +319,18 @@ export default function ModuleDetailPage() {
                         
                         {item.type === 'text' && (
                           <p className="text-[#637588]">{item.data}</p>
+                        )}
+                        
+                        {item.type === 'video' && (
+                          <div>
+                            <p className="text-[#637588] mb-2">Video content</p>
+                            {item.videoInfo && (
+                              <div className="text-xs text-[#637588]">
+                                <p>File: {item.videoInfo.originalName}</p>
+                                <p>Size: {Math.round(item.videoInfo.size / (1024 * 1024) * 10) / 10} MB</p>
+                              </div>
+                            )}
+                          </div>
                         )}
                         
                         {item.type === 'interactive' && (
@@ -341,8 +359,16 @@ export default function ModuleDetailPage() {
                                   }`}>
                                     {option}
                                   </span>
+                                  {optionIndex === item.quizData!.correctAnswer && (
+                                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                                      Correct Answer
+                                    </span>
+                                  )}
                                 </div>
                               ))}
+                            </div>
+                            <div className="mt-3 text-xs text-gray-500">
+                              Correct Answer: Option {item.quizData!.correctAnswer + 1} • Points: {item.quizData!.points}
                             </div>
                           </div>
                         )}

@@ -460,14 +460,38 @@ export default function ModuleDetailPage() {
                 {module.content.slice(0, 3).map((item, index) => (
                   <div key={index} className="p-4 border border-[#dde0e4] rounded-lg">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs bg-[#4798ea] text-white px-2 py-1 rounded">
-                        {item.type}
+                      <span className={`text-xs px-2 py-1 rounded ${
+                        item.type === 'video' ? 'bg-blue-100 text-blue-800' :
+                        item.type === 'quiz' ? 'bg-green-100 text-green-800' :
+                        item.type === 'text' ? 'bg-purple-100 text-purple-800' :
+                        'bg-[#4798ea] text-white'
+                      }`}>
+                        {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
                       </span>
                       <span className="text-sm text-[#637588]">Step {index + 1}</span>
+                      {item.type === 'quiz' && item.quizData && (
+                        <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded">
+                          {item.quizData.points} points
+                        </span>
+                      )}
                     </div>
-                    <p className="text-[#111418] text-sm">
-                      {item.data.length > 100 ? `${item.data.substring(0, 100)}...` : item.data}
-                    </p>
+                    {item.type === 'quiz' && item.quizData ? (
+                      <div>
+                        <p className="text-[#111418] text-sm font-medium mb-2">{item.quizData.question}</p>
+                        <div className="text-xs text-[#637588]">
+                          {item.quizData.options.length} options • Quiz
+                        </div>
+                      </div>
+                    ) : item.type === 'video' ? (
+                      <div>
+                        <p className="text-[#111418] text-sm">Video content</p>
+                        <div className="text-xs text-[#637588]">Watch and learn</div>
+                      </div>
+                    ) : (
+                      <p className="text-[#111418] text-sm">
+                        {item.data && item.data.length > 100 ? `${item.data.substring(0, 100)}...` : item.data || 'Content'}
+                      </p>
+                    )}
                   </div>
                 ))}
                 {module.content.length > 3 && (

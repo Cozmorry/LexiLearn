@@ -39,12 +39,12 @@ interface Module {
       correctAnswer: number;
       points: number;
     };
-    comprehensionQuestion?: {
+    comprehensionQuestions?: Array<{
       question: string;
       options: string[];
       correctAnswer: number;
       points: number;
-    };
+    }>;
   }>;
   exercises: Array<{
     type: 'multiple-choice' | 'fill-blank' | 'matching' | 'drag-drop' | 'typing';
@@ -195,6 +195,17 @@ export default function ExercisePage() {
   const currentExercise = useMemo(() => module?.content[currentStep], [module, currentStep]);
   const isLastExercise = useMemo(() => currentStep === (module?.content.length || 0) - 1, [currentStep, module?.content.length]);
   const isQuiz = useMemo(() => currentExercise?.type === 'quiz', [currentExercise?.type]);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Current exercise:', currentExercise);
+    console.log('Exercise type:', currentExercise?.type);
+    console.log('Is quiz:', isQuiz);
+    console.log('Current step:', currentStep);
+    console.log('Total content:', module?.content?.length);
+    console.log('Comprehension questions:', currentExercise?.comprehensionQuestions);
+    console.log('Quiz data:', currentExercise?.quizData);
+  }, [currentExercise, isQuiz, currentStep, module?.content?.length]);
   
 
 
@@ -220,8 +231,8 @@ export default function ExercisePage() {
       setIsSubmitting(true);
       setIsNavigating(true);
       
-      // Check if this content has a comprehension question (for both text and video exercises)
-      if (currentExercise?.comprehensionQuestion && !showComprehensionQuestion) {
+      // Check if this content has a comprehension question (for text, video, or quiz exercises)
+      if (currentExercise?.comprehensionQuestions && currentExercise.comprehensionQuestions.length > 0 && !showComprehensionQuestion) {
         console.log('Showing comprehension question for exercise');
         setShowComprehensionQuestion(true);
         setIsSubmitting(false);
@@ -237,13 +248,14 @@ export default function ExercisePage() {
       // If this is the first exercise (step 0) and status is not-started, change to in-progress
       const shouldStartProgress = currentStep === 0 && progress?.status === 'not-started';
       
-      // Calculate points for comprehension question if answered (for both text and video exercises)
+      // Calculate points for comprehension question if answered (for text, video, or quiz exercises)
       let comprehensionPoints = 0;
       let comprehensionScore = 0;
-      if (currentExercise?.comprehensionQuestion && comprehensionAnswer) {
-        const correctAnswer = currentExercise.comprehensionQuestion.options[currentExercise.comprehensionQuestion.correctAnswer];
+      if (currentExercise?.comprehensionQuestions && currentExercise.comprehensionQuestions.length > 0 && comprehensionAnswer) {
+        const currentQuestion = currentExercise.comprehensionQuestions[0]; // Use first question
+        const correctAnswer = currentQuestion.options[currentQuestion.correctAnswer];
         const isCorrect = comprehensionAnswer === correctAnswer;
-        comprehensionPoints = isCorrect ? currentExercise.comprehensionQuestion.points : 0;
+        comprehensionPoints = isCorrect ? currentQuestion.points : 0;
         // Calculate score as percentage (100% if correct, 0% if incorrect)
         comprehensionScore = isCorrect ? 100 : 0;
       }
@@ -384,6 +396,14 @@ export default function ExercisePage() {
 
       const response = await progressAPI.updateProgress(progressData);
       setProgress(response.progress);
+
+      // Check if there are comprehension questions to show after quiz submission
+      if (currentExercise?.comprehensionQuestions && currentExercise.comprehensionQuestions.length > 0) {
+        console.log('Quiz completed, showing additional comprehension question');
+        setShowComprehensionQuestion(true);
+        setIsSubmitting(false);
+        return;
+      }
 
       // Show results for 3 seconds then proceed
       setTimeout(() => {
@@ -670,7 +690,7 @@ export default function ExercisePage() {
                                 setShowVideoCompletion(true);
                                 
                                 // Check if there's a comprehension question
-                                if (currentExercise?.comprehensionQuestion) {
+                                if (currentExercise?.comprehensionQuestions && currentExercise.comprehensionQuestions.length > 0) {
                                   console.log('Video completed, showing comprehension question');
                                   setTimeout(() => {
                                     setShowVideoCompletion(false);
@@ -820,8 +840,8 @@ export default function ExercisePage() {
                               setVideoCompleted(true);
                               setShowVideoCompletion(true);
                               
-                              // Check if there's a comprehension question
-                              if (currentExercise?.comprehensionQuestion) {
+                                                              // Check if there's a comprehension question
+                                if (currentExercise?.comprehensionQuestions && currentExercise.comprehensionQuestions.length > 0) {
                                 console.log('Video completed, showing comprehension question from VideoProgress');
                                 setTimeout(() => {
                                   setShowVideoCompletion(false);
@@ -840,6 +860,97 @@ export default function ExercisePage() {
                         />
                       </div>
                     </div>
+                  ) : currentExercise.type === 'quiz' ? (
+                    // Quiz Exercise
+                    <div className="space-y-4">
+                      <h1 className="text-[#111418] text-2xl font-bold mb-6">
+                        {currentExercise.quizData?.question}
+                      </h1>
+                      {currentExercise.quizData?.options?.map((option, index) => (
+                        <label
+                          key={index}
+                          className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-colors ${
+                            selectedAnswers.includes(option)
+                              ? 'border-[#4798ea] bg-[#f0f8ff]'
+                              : 'border-[#dde0e4] hover:border-[#4798ea]'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="answer"
+                            value={option}
+                            checked={selectedAnswers.includes(option)}
+                            onChange={() => handleAnswerSelect(option)}
+                            className="sr-only"
+                          />
+                          <div className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
+                            selectedAnswers.includes(option)
+                              ? 'border-[#4798ea] bg-[#4798ea]'
+                              : 'border-[#dde0e4]'
+                          }`}>
+                            {selectedAnswers.includes(option) && (
+                              <div className="w-2 h-2 bg-white rounded-full"></div>
+                            )}
+                          </div>
+                          <span className="text-[#111418]">{option}</span>
+                        </label>
+                      ))}
+                      
+                      <button
+                        onClick={handleQuizSubmit}
+                        disabled={selectedAnswers.length === 0 || isSubmitting}
+                        className="w-full mt-6 px-6 py-3 bg-[#4798ea] text-white rounded-xl font-bold hover:bg-[#3a7bc8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isSubmitting ? 'Submitting...' : 'Submit Answer'}
+                      </button>
+                      
+                      {showComprehensionQuestion ? (
+                        // Additional Comprehension Question for Quiz
+                        <div className="bg-white border border-[#dde0e4] rounded-xl p-6 mt-6">
+                          <h3 className="text-[#111418] text-lg font-semibold mb-4">
+                            Additional Question
+                          </h3>
+                          <p className="text-[#637588] mb-4">
+                            {currentExercise.comprehensionQuestions && currentExercise.comprehensionQuestions.length > 0 
+                              ? currentExercise.comprehensionQuestions[0].question 
+                              : 'No question found'}
+                          </p>
+                          <div className="space-y-3">
+                            {(currentExercise.comprehensionQuestions && currentExercise.comprehensionQuestions.length > 0 
+                              ? currentExercise.comprehensionQuestions[0].options 
+                              : ['Option 1', 'Option 2', 'Option 3', 'Option 4']).map((option, index) => (
+                              <label
+                                key={index}
+                                className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-colors ${
+                                  comprehensionAnswer === option
+                                    ? 'border-[#4798ea] bg-[#f0f8ff]'
+                                    : 'border-[#dde0e4] hover:border-[#4798ea]'
+                                }`}
+                              >
+                                <input
+                                  type="radio"
+                                  name="comprehension"
+                                  value={option}
+                                  checked={comprehensionAnswer === option}
+                                  onChange={(e) => setComprehensionAnswer(e.target.value)}
+                                  className="sr-only"
+                                />
+                                <div className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center ${
+                                  comprehensionAnswer === option
+                                    ? 'border-[#4798ea] bg-[#4798ea]'
+                                    : 'border-[#dde0e4]'
+                                }`}>
+                                  {comprehensionAnswer === option && (
+                                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                                  )}
+                                </div>
+                                <span className="text-[#111418]">{option}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
                   ) : (
                     // Text/Reading Exercise
                     <div className="space-y-6">
@@ -856,10 +967,14 @@ export default function ExercisePage() {
                             Comprehension Check
                           </h3>
                           <p className="text-[#637588] mb-4">
-                            {currentExercise.comprehensionQuestion?.question || 'No question found'}
+                            {currentExercise.comprehensionQuestions && currentExercise.comprehensionQuestions.length > 0 
+                              ? currentExercise.comprehensionQuestions[0].question 
+                              : 'No question found'}
                           </p>
                           <div className="space-y-3">
-                            {(currentExercise.comprehensionQuestion?.options || ['Option 1', 'Option 2', 'Option 3', 'Option 4']).map((option, index) => (
+                            {(currentExercise.comprehensionQuestions && currentExercise.comprehensionQuestions.length > 0 
+                              ? currentExercise.comprehensionQuestions[0].options 
+                              : ['Option 1', 'Option 2', 'Option 3', 'Option 4']).map((option, index) => (
                               <label
                                 key={index}
                                 className={`flex items-center p-4 border-2 rounded-xl cursor-pointer transition-colors ${

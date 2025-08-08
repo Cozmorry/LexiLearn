@@ -159,7 +159,7 @@ const TeacherReportsPage: React.FC = () => {
   // Filter data based on selections
   const filteredProgress = progress.filter(p => {
     if (selectedStudent && p.studentId._id !== selectedStudent) return false;
-    if (selectedModule && p.moduleId._id !== selectedModule) return false;
+    if (selectedModule && p.moduleId && p.moduleId._id !== selectedModule) return false;
     return true;
   });
 
@@ -242,7 +242,7 @@ const TeacherReportsPage: React.FC = () => {
 
   const generateModuleCompletionData = () => {
     return modules.map(module => {
-      const moduleProgress = completedProgress.filter(p => p.moduleId._id === module._id);
+      const moduleProgress = completedProgress.filter(p => p.moduleId && p.moduleId._id === module._id);
       const completionRate = totalStudents > 0 
         ? Math.round((moduleProgress.length / totalStudents) * 100)
         : 0;
@@ -616,7 +616,7 @@ const TeacherReportsPage: React.FC = () => {
                           <div key={index} className="flex items-center justify-between py-2">
                             <div>
                               <p className="text-[#111418] font-medium">{p.studentId.name}</p>
-                              <p className="text-[#637588] text-sm">{p.moduleId.title}</p>
+                              <p className="text-[#637588] text-sm">{p.moduleId?.title || 'Unknown Module'}</p>
                             </div>
                             <div className="text-right">
                               <p className="text-[#111418] font-medium">{p.score}%</p>
@@ -702,7 +702,7 @@ const TeacherReportsPage: React.FC = () => {
                                   {p.studentId.name}
                                 </td>
                                 <td className="px-6 py-4 text-[#637588]">
-                                  {p.moduleId.title}
+                                  {p.moduleId?.title || 'Unknown Module'}
                                 </td>
                                 <td className="px-6 py-4">
                                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -742,7 +742,7 @@ const TeacherReportsPage: React.FC = () => {
                       <h3 className="text-[#111418] text-lg font-semibold mb-4">Module Performance</h3>
                       <div className="space-y-4">
                         {modules.map(module => {
-                          const moduleProgress = completedProgress.filter(p => p.moduleId._id === module._id);
+                          const moduleProgress = completedProgress.filter(p => p.moduleId && p.moduleId._id === module._id);
                           const avgScore = moduleProgress.length > 0 
                             ? Math.round(moduleProgress.reduce((sum, p) => sum + p.score, 0) / moduleProgress.length)
                             : 0;

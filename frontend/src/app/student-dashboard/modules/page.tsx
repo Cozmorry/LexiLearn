@@ -118,7 +118,7 @@ export default function StudentModulesPage() {
   };
 
   const getProgressForModule = (moduleId: string) => {
-    return progress.find(p => p.moduleId._id === moduleId);
+    return progress.find(p => p.moduleId && p.moduleId._id === moduleId);
   };
 
   const getModuleImage = (module: Module) => {

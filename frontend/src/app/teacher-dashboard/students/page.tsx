@@ -348,7 +348,7 @@ const TeacherStudentsPage: React.FC = () => {
                     name="name"
                     value={editFormData.name}
                     onChange={handleEditInputChange}
-                    className="w-full h-12 px-4 rounded-xl border border-[#dde0e4] bg-white focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200"
+                    className="w-full h-12 px-4 rounded-xl border border-[#dde0e4] bg-white text-[#111418] placeholder:text-[#9aa3af] focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200"
                     required
                   />
                 </div>
@@ -363,7 +363,7 @@ const TeacherStudentsPage: React.FC = () => {
                     name="email"
                     value={editFormData.email}
                     onChange={handleEditInputChange}
-                    className="w-full h-12 px-4 rounded-xl border border-[#dde0e4] bg-white focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200"
+                    className="w-full h-12 px-4 rounded-xl border border-[#dde0e4] bg-white text-[#111418] placeholder:text-[#9aa3af] focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200"
                   />
                 </div>
 
@@ -376,7 +376,7 @@ const TeacherStudentsPage: React.FC = () => {
                     name="grade"
                     value={editFormData.grade}
                     onChange={handleEditInputChange}
-                    className="w-full h-12 px-4 rounded-xl border border-[#dde0e4] bg-white focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200"
+                    className="w-full h-12 px-4 rounded-xl border border-[#dde0e4] bg-white text-[#111418] focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200"
                     required
                   >
                     <option value="1st">1st Grade</option>
@@ -396,7 +396,7 @@ const TeacherStudentsPage: React.FC = () => {
                       name="secretCode"
                       value={editFormData.secretCode}
                       onChange={handleEditInputChange}
-                      className="flex-1 h-12 px-4 rounded-xl border border-[#dde0e4] bg-white focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200 font-mono"
+                      className="flex-1 h-12 px-4 rounded-xl border border-[#dde0e4] bg-white text-[#111418] placeholder:text-[#9aa3af] focus:border-[#4798ea] focus:outline-none focus:ring-2 focus:ring-[#4798ea]/20 transition-all duration-200 font-mono"
                     />
                     <button
                       type="button"
@@ -530,6 +530,8 @@ const TeacherStudentsPage: React.FC = () => {
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label="Close performance modal"
+              title="Close"
             >
               <svg className="w-6 h-6 text-[#637588]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

@@ -24,12 +24,23 @@ interface Module {
   content: Array<{
     type: 'text' | 'interactive' | 'quiz';
     data: string;
+    videoInfo?: {
+      originalName: string;
+      mimetype: string;
+      size: number;
+    };
     quizData?: {
       question: string;
       options: string[];
       correctAnswer: number;
       points: number;
     };
+    comprehensionQuestions?: Array<{
+      question: string;
+      options: string[];
+      correctAnswer: number;
+      points: number;
+    }>;
   }>;
   photos: Array<{
     filename: string;
@@ -67,12 +78,23 @@ interface ModuleFormData {
   content: Array<{
     type: 'text' | 'interactive' | 'quiz';
     data: string;
+    videoInfo?: {
+      originalName: string;
+      mimetype: string;
+      size: number;
+    };
     quizData?: {
       question: string;
       options: string[];
       correctAnswer: number;
       points: number;
     };
+    comprehensionQuestions?: Array<{
+      question: string;
+      options: string[];
+      correctAnswer: number;
+      points: number;
+    }>;
   }>;
   photos: File[];
   videos: File[];
@@ -253,6 +275,7 @@ export default function EditModulePage() {
       formDataToSend.append('instructions', formData.instructions);
       formDataToSend.append('assessment', formData.assessment);
       formDataToSend.append('content', JSON.stringify(formData.content));
+
 
 
       // Add files
@@ -591,7 +614,7 @@ export default function EditModulePage() {
                       onChange={(e) => handleFileChange(e, 'videos')}
                       className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#4798ea] file:text-white hover:file:bg-[#3a7bc8]"
                     />
-                    <p className="text-sm text-gray-900 mt-1">Upload videos to support your module content</p>
+                    <p className="text-sm text-gray-900 mt-1">Upload videos to support your module content. Videos will automatically appear first in the module flow, followed by text content and quizzes.</p>
                   </div>
                 </div>
               </div>
@@ -604,20 +627,50 @@ export default function EditModulePage() {
                   {formData.content.map((item, index) => (
                     <div key={index} className="border border-[#dce0e5] rounded-lg p-4">
                       <div className="flex items-center justify-between mb-4">
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                        </span>
-                                                 <button
-                           type="button"
-                           onClick={() => removeContentSection(index)}
-                           className="text-red-500 hover:text-red-700"
-                           aria-label="Remove content section"
-                           title="Remove content section"
-                         >
-                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                           </svg>
-                         </button>
+                        <div className="flex items-center gap-3">
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+                          </span>
+                          <select
+                            value={item.type}
+                            aria-label="Select content type"
+                            onChange={(e) => {
+                              const newType = e.target.value as 'text' | 'interactive' | 'quiz';
+
+                              setFormData(prev => ({
+                                ...prev,
+                                content: prev.content.map((c, i) => i === index ? {
+                                  ...c,
+                                  type: newType,
+                                  ...(newType === 'quiz' && !c.quizData && {
+                                    quizData: {
+                                      question: '',
+                                      options: ['', '', '', ''],
+                                      correctAnswer: 0,
+                                      points: 10
+                                    }
+                                  })
+                                } : c)
+                              }));
+                            }}
+                            className="px-3 py-1 border border-[#dce0e5] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent"
+                          >
+                            <option value="text">Text Section</option>
+                            <option value="interactive">Interactive Section</option>
+                            <option value="quiz">Quiz Section</option>
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeContentSection(index)}
+                          className="text-red-500 hover:text-red-700"
+                          aria-label="Remove content section"
+                          title="Remove content section"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                       </div>
 
                       {item.type === 'text' && (
@@ -632,6 +685,7 @@ export default function EditModulePage() {
                             className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
                             placeholder="Enter text content"
                           />
+
                         </div>
                       )}
 
@@ -650,7 +704,7 @@ export default function EditModulePage() {
                         </div>
                       )}
 
-                      {item.type === 'quiz' && item.quizData && (
+                       {item.type === 'quiz' && item.quizData && (
                         <div className="space-y-4">
                           <div>
                             <label className="block text-gray-900 text-sm font-medium mb-2">
@@ -708,13 +762,256 @@ export default function EditModulePage() {
                               min="1"
                             />
                           </div>
+
+                          {/* Comprehension Questions for Quiz sections */}
+                          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-sm font-medium text-gray-900">Additional Questions (Optional)</h4>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    content: prev.content.map((c, i) => i === index ? {
+                                      ...c,
+                                      comprehensionQuestions: [...(c.comprehensionQuestions || []), {
+                                        question: '',
+                                        options: ['', '', '', ''],
+                                        correctAnswer: 0,
+                                        points: 10
+                                      }]
+                                    } : c)
+                                  }));
+                                }}
+                                className="text-sm text-[#4798ea] hover:text-[#3a7bc8]"
+                              >
+                                Add Question
+                              </button>
+                            </div>
+                            
+                            {(item.comprehensionQuestions || []).map((compQuestion, compIndex) => (
+                              <div key={compIndex} className="space-y-3 mb-4 p-3 border border-gray-200 rounded-lg">
+                                <div className="flex items-center justify-between">
+                                  <h5 className="text-sm font-medium text-gray-800">Question {compIndex + 1}</h5>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        content: prev.content.map((c, i) => i === index ? {
+                                          ...c,
+                                          comprehensionQuestions: c.comprehensionQuestions?.filter((_, idx) => idx !== compIndex) || []
+                                        } : c)
+                                      }));
+                                    }}
+                                    className="text-xs text-red-600 hover:text-red-800"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                                
+                                <div>
+                                  <label htmlFor={`quiz-comp-question-${index}-${compIndex}`} className="block text-sm font-medium text-gray-700 mb-1">Question</label>
+                                  <textarea
+                                    id={`quiz-comp-question-${index}-${compIndex}`}
+                                    value={compQuestion.question}
+                                    onChange={(e) => {
+                                      const newQuestions = [...(item.comprehensionQuestions || [])];
+                                      newQuestions[compIndex] = { ...newQuestions[compIndex], question: e.target.value };
+                                      console.log('Saving comprehension question:', newQuestions);
+                                      updateContentSection(index, 'comprehensionQuestions', newQuestions);
+                                    }}
+                                    rows={2}
+                                    className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                  />
+                                </div>
+                                
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">Options</label>
+                                  {(compQuestion.options || ['', '', '', '']).map((opt, optIdx) => (
+                                    <div key={optIdx} className="flex items-center gap-2 mb-2">
+                                      <input
+                                        type="radio"
+                                        name={`quiz-comp-${index}-${compIndex}`}
+                                        checked={compQuestion.correctAnswer === optIdx}
+                                        onChange={() => {
+                                          const newQuestions = [...(item.comprehensionQuestions || [])];
+                                          newQuestions[compIndex] = { ...newQuestions[compIndex], correctAnswer: optIdx };
+                                          updateContentSection(index, 'comprehensionQuestions', newQuestions);
+                                        }}
+                                        className="text-[#4798ea] focus:ring-[#4798ea]"
+                                        aria-label={`Mark option ${optIdx + 1} as correct answer`}
+                                      />
+                                      <input
+                                        type="text"
+                                        value={opt}
+                                        onChange={(e) => {
+                                          const newQuestions = [...(item.comprehensionQuestions || [])];
+                                          const newOptions = [...(newQuestions[compIndex].options || ['', '', '', ''])];
+                                          newOptions[optIdx] = e.target.value;
+                                          newQuestions[compIndex] = { ...newQuestions[compIndex], options: newOptions };
+                                          updateContentSection(index, 'comprehensionQuestions', newQuestions);
+                                        }}
+                                        className="flex-1 px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                        placeholder={`Option ${optIdx + 1}`}
+                                        aria-label={`Comprehension question option ${optIdx + 1}`}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                                
+                                <div>
+                                  <label htmlFor={`quiz-comp-points-${index}-${compIndex}`} className="block text-sm font-medium text-gray-700 mb-1">Points</label>
+                                  <input
+                                    id={`quiz-comp-points-${index}-${compIndex}`}
+                                    type="number"
+                                    value={compQuestion.points}
+                                    onChange={(e) => {
+                                      const newQuestions = [...(item.comprehensionQuestions || [])];
+                                      newQuestions[compIndex] = { ...newQuestions[compIndex], points: parseInt(e.target.value) || 10 };
+                                      updateContentSection(index, 'comprehensionQuestions', newQuestions);
+                                    }}
+                                    min={1}
+                                    max={100}
+                                    className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
+
+                       {item.type === 'video' && (
+                         <div className="space-y-4">
+                           <div className="bg-gray-50 p-3 rounded-lg border border-[#dce0e5]">
+                             <p className="text-sm text-gray-900 font-medium">Video</p>
+                             <p className="text-sm text-gray-700">
+                               {item.videoInfo?.originalName || item.data || 'Uploaded video'}
+                             </p>
+                             {item.videoInfo && (
+                               <p className="text-xs text-gray-600 mt-1">{item.videoInfo.mimetype} • {Math.round((item.videoInfo.size || 0) / (1024 * 1024))} MB</p>
+                             )}
+                           </div>
+                            <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                             <div className="flex items-center justify-between mb-3">
+                               <h4 className="text-sm font-medium text-gray-900">Comprehension Questions (Optional)</h4>
+                               <button
+                                 type="button"
+                                 onClick={() => {
+                                   setFormData(prev => ({
+                                     ...prev,
+                                     content: prev.content.map((c, i) => i === index ? {
+                                       ...c,
+                                       comprehensionQuestions: [...(c.comprehensionQuestions || []), {
+                                         question: '',
+                                         options: ['', '', '', ''],
+                                         correctAnswer: 0,
+                                         points: 10
+                                       }]
+                                     } : c)
+                                   }));
+                                 }}
+                                 className="text-sm text-[#4798ea] hover:text-[#3a7bc8]"
+                               >
+                                 Add Question
+                               </button>
+                             </div>
+                              {(item.comprehensionQuestions || []).map((compQuestion, compIndex) => (
+                               <div key={compIndex} className="space-y-3 mb-4 p-3 border border-gray-200 rounded-lg">
+                                 <div className="flex items-center justify-between">
+                                   <h5 className="text-sm font-medium text-gray-800">Question {compIndex + 1}</h5>
+                                   <button
+                                     type="button"
+                                     onClick={() => {
+                                       setFormData(prev => ({
+                                         ...prev,
+                                         content: prev.content.map((c, i) => i === index ? {
+                                           ...c,
+                                           comprehensionQuestions: c.comprehensionQuestions?.filter((_, idx) => idx !== compIndex) || []
+                                         } : c)
+                                       }));
+                                     }}
+                                     className="text-xs text-red-600 hover:text-red-800"
+                                   >
+                                     Remove
+                                   </button>
+                                 </div>
+                                  <div>
+                                    <label htmlFor={`video-comp-question-${index}-${compIndex}`} className="block text-sm font-medium text-gray-700 mb-1">Question</label>
+                                    <textarea
+                                      id={`video-comp-question-${index}-${compIndex}`}
+                                      value={compQuestion.question}
+                                      onChange={(e) => {
+                                        const newQuestions = [...(item.comprehensionQuestions || [])];
+                                        newQuestions[compIndex] = { ...newQuestions[compIndex], question: e.target.value };
+                                        updateContentSection(index, 'comprehensionQuestions', newQuestions);
+                                      }}
+                                      rows={2}
+                                      className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                    />
+                                  </div>
+                                 <div>
+                                   <label className="block text-sm font-medium text-gray-700 mb-2">Options</label>
+                                   {(compQuestion.options || ['', '', '', '']).map((opt, optIdx) => (
+                                     <div key={optIdx} className="flex items-center gap-2 mb-2">
+                                      <input
+                                         type="radio"
+                                         name={`video-comp-${index}-${compIndex}`}
+                                         checked={compQuestion.correctAnswer === optIdx}
+                                         onChange={() => {
+                                           const newQuestions = [...(item.comprehensionQuestions || [])];
+                                           newQuestions[compIndex] = { ...newQuestions[compIndex], correctAnswer: optIdx };
+                                           updateContentSection(index, 'comprehensionQuestions', newQuestions);
+                                         }}
+                                         className="text-[#4798ea] focus:ring-[#4798ea]"
+                                        aria-label={`Mark option ${optIdx + 1} as correct answer`}
+                                       />
+                                      <input
+                                         type="text"
+                                         value={opt}
+                                         onChange={(e) => {
+                                           const newQuestions = [...(item.comprehensionQuestions || [])];
+                                           const newOptions = [...(newQuestions[compIndex].options || ['', '', '', ''])];
+                                           newOptions[optIdx] = e.target.value;
+                                           newQuestions[compIndex] = { ...newQuestions[compIndex], options: newOptions };
+                                           updateContentSection(index, 'comprehensionQuestions', newQuestions);
+                                         }}
+                                         className="flex-1 px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                        placeholder={`Option ${optIdx + 1}`}
+                                        aria-label={`Comprehension question option ${optIdx + 1}`}
+                                       />
+                                     </div>
+                                   ))}
+                                 </div>
+                              <div>
+                                <label htmlFor={`video-comp-points-${index}-${compIndex}`} className="block text-sm font-medium text-gray-700 mb-1">Points</label>
+                                <input
+                                  id={`video-comp-points-${index}-${compIndex}`}
+                                  type="number"
+                                  value={compQuestion.points}
+                                  onChange={(e) => {
+                                    const newQuestions = [...(item.comprehensionQuestions || [])];
+                                    newQuestions[compIndex] = { ...newQuestions[compIndex], points: parseInt(e.target.value) || 10 };
+                                    updateContentSection(index, 'comprehensionQuestions', newQuestions);
+                                  }}
+                                  min={1}
+                                  max={100}
+                                  className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                />
+                              </div>
+                                </div>
+                              ))}
+
+
+                           </div>
+                         </div>
+                       )}
                     </div>
                   ))}
 
                   <div className="flex gap-2">
-                    <button
+                     <button
                       type="button"
                       onClick={() => addContentSection('text')}
                       className="px-4 py-2 text-[#4798ea] border border-[#4798ea] rounded-lg hover:bg-[#4798ea] hover:text-white transition-colors"
@@ -728,6 +1025,7 @@ export default function EditModulePage() {
                     >
                       + Add Interactive
                     </button>
+
                     <button
                       type="button"
                       onClick={() => addContentSection('quiz')}

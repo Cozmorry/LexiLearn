@@ -135,6 +135,10 @@ userSchema.pre('save', function(next) {
 
 // Instance method to compare password
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  // If this user has no password set (e.g., student accounts using secret codes), fail gracefully
+  if (!this.password || typeof this.password !== 'string') {
+    return false;
+  }
   return await bcrypt.compare(candidatePassword, this.password);
 };
 

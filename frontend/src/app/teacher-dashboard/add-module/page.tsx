@@ -29,11 +29,16 @@ interface ModuleFormData {
       correctAnswer: number;
       points: number;
     };
-    comprehensionQuestion?: {
+    comprehensionQuestions?: Array<{
       question: string;
       options: string[];
       correctAnswer: number;
       points: number;
+    }>;
+    videoInfo?: {
+      originalName: string;
+      mimetype: string;
+      size: number;
     };
   }>;
 
@@ -383,9 +388,9 @@ export default function AddModulePage() {
                              className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent text-gray-900"
                              aria-label="Select content type"
                            >
-                             <option value="text">Text Section</option>
-                             <option value="interactive">Interactive Section</option>
-                             <option value="quiz">Quiz Section</option>
+                              <option value="text">Text Section</option>
+                              <option value="interactive">Interactive Section</option>
+                              <option value="quiz">Quiz Section</option>
                            </select>
                          </div>
                                                  {item.type === 'quiz' ? (
@@ -488,181 +493,361 @@ export default function AddModulePage() {
                                  className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
                                />
                              </div>
+
+                             {/* Comprehension Questions for Quiz sections */}
+                             <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                               <div className="flex items-center justify-between mb-3">
+                                 <h4 className="text-sm font-medium text-gray-900">Additional Questions (Optional)</h4>
+                                 <button
+                                   type="button"
+                                   onClick={() => {
+                                     const newContent = [...formData.content];
+                                     newContent[index] = {
+                                       ...newContent[index],
+                                       comprehensionQuestions: [...(newContent[index].comprehensionQuestions || []), {
+                                         question: '',
+                                         options: ['', '', '', ''],
+                                         correctAnswer: 0,
+                                         points: 10
+                                       }]
+                                     };
+                                     setFormData(prev => ({ ...prev, content: newContent }));
+                                   }}
+                                   className="text-sm text-[#4798ea] hover:text-[#3a7bc8]"
+                                 >
+                                   Add Question
+                                 </button>
+                               </div>
+                               
+                               {(item.comprehensionQuestions || []).map((compQuestion, compIndex) => (
+                                 <div key={compIndex} className="space-y-3 mb-4 p-3 border border-gray-200 rounded-lg">
+                                   <div className="flex items-center justify-between">
+                                     <h5 className="text-sm font-medium text-gray-800">Question {compIndex + 1}</h5>
+                                     <button
+                                       type="button"
+                                       onClick={() => {
+                                         const newContent = [...formData.content];
+                                         newContent[index] = {
+                                           ...newContent[index],
+                                           comprehensionQuestions: newContent[index].comprehensionQuestions?.filter((_, idx) => idx !== compIndex) || []
+                                         };
+                                         setFormData(prev => ({ ...prev, content: newContent }));
+                                       }}
+                                       className="text-xs text-red-600 hover:text-red-800"
+                                     >
+                                       Remove
+                                     </button>
+                                   </div>
+                                   
+                                   <div>
+                                     <label className="block text-sm font-medium text-gray-700 mb-1">Question</label>
+                                     <textarea
+                                       value={compQuestion.question}
+                                       onChange={(e) => {
+                                         const newContent = [...formData.content];
+                                         const newQuestions = [...(newContent[index].comprehensionQuestions || [])];
+                                         newQuestions[compIndex] = { ...newQuestions[compIndex], question: e.target.value };
+                                         newContent[index] = {
+                                           ...newContent[index],
+                                           comprehensionQuestions: newQuestions
+                                         };
+                                         setFormData(prev => ({ ...prev, content: newContent }));
+                                       }}
+                                       placeholder="Enter a comprehension question..."
+                                       rows={2}
+                                       className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                     />
+                                   </div>
+                                   
+                                   <div>
+                                     <label className="block text-sm font-medium text-gray-700 mb-2">Options</label>
+                                     {compQuestion.options.map((option, optionIndex) => (
+                                       <div key={optionIndex} className="flex items-center gap-2 mb-2">
+                                         <input
+                                           type="radio"
+                                           name={`quiz-comp-correct-${index}-${compIndex}`}
+                                           checked={compQuestion.correctAnswer === optionIndex}
+                                           onChange={() => {
+                                             const newContent = [...formData.content];
+                                             const newQuestions = [...(newContent[index].comprehensionQuestions || [])];
+                                             newQuestions[compIndex] = { ...newQuestions[compIndex], correctAnswer: optionIndex };
+                                             newContent[index] = {
+                                               ...newContent[index],
+                                               comprehensionQuestions: newQuestions
+                                             };
+                                             setFormData(prev => ({ ...prev, content: newContent }));
+                                           }}
+                                           className="text-[#4798ea] focus:ring-[#4798ea]"
+                                           aria-label={`Mark option ${optionIndex + 1} as correct answer`}
+                                         />
+                                         <input
+                                           type="text"
+                                           value={option}
+                                           onChange={(e) => {
+                                             const newContent = [...formData.content];
+                                             const newQuestions = [...(newContent[index].comprehensionQuestions || [])];
+                                             const newOptions = [...(newQuestions[compIndex].options || ['', '', '', ''])];
+                                             newOptions[optionIndex] = e.target.value;
+                                             newQuestions[compIndex] = { ...newQuestions[compIndex], options: newOptions };
+                                             newContent[index] = {
+                                               ...newContent[index],
+                                               comprehensionQuestions: newQuestions
+                                             };
+                                             setFormData(prev => ({ ...prev, content: newContent }));
+                                           }}
+                                           placeholder={`Option ${optionIndex + 1}`}
+                                           className="flex-1 px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                           aria-label={`Comprehension question option ${optionIndex + 1}`}
+                                         />
+                                       </div>
+                                     ))}
+                                   </div>
+                                   
+                                   <div>
+                                     <label className="block text-sm font-medium text-gray-700 mb-1">Points</label>
+                                     <input
+                                       type="number"
+                                       value={compQuestion.points}
+                                       onChange={(e) => {
+                                         const newContent = [...formData.content];
+                                         const newQuestions = [...(newContent[index].comprehensionQuestions || [])];
+                                         newQuestions[compIndex] = { ...newQuestions[compIndex], points: parseInt(e.target.value) || 10 };
+                                         newContent[index] = {
+                                           ...newContent[index],
+                                           comprehensionQuestions: newQuestions
+                                         };
+                                         setFormData(prev => ({ ...prev, content: newContent }));
+                                       }}
+                                       min="1"
+                                       max="100"
+                                       className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                       aria-label="Comprehension question points"
+                                     />
+                                   </div>
+                                 </div>
+                               ))}
+                             </div>
                            </div>
-                         ) : (
+                          ) : (
                            <>
                              <label htmlFor={`content-data-${index}`} className="block text-gray-900 text-sm font-medium mb-2">
                                Content
                              </label>
-                             <textarea
-                               id={`content-data-${index}`}
-                               value={item.data}
-                               onChange={(e) => {
-                                 const newContent = [...formData.content];
-                                 newContent[index] = { ...newContent[index], data: e.target.value };
-                                 setFormData(prev => ({ ...prev, content: newContent }));
-                               }}
-                               placeholder={item.type === 'text' ? 'Enter text content for this section...' : 'Enter interactive content for this section...'}
-                               rows={item.type === 'text' ? 4 : 8}
-                               className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
-                             />
+                              <textarea
+                                id={`content-data-${index}`}
+                                value={item.data}
+                                onChange={(e) => {
+                                  const newContent = [...formData.content];
+                                  newContent[index] = { ...newContent[index], data: e.target.value };
+                                  setFormData(prev => ({ ...prev, content: newContent }));
+                                }}
+                                placeholder={item.type === 'text' ? 'Enter text content for this section...' : 'Enter interactive content for this section...'}
+                                rows={item.type === 'text' ? 4 : 8}
+                                className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                              />
                              
-                             {item.type === 'text' && (
-                               <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                                 <div className="flex items-center justify-between mb-3">
-                                   <h4 className="text-sm font-medium text-gray-900">Comprehension Question (Optional)</h4>
-                                   <button
-                                     type="button"
-                                     onClick={() => {
-                                       const newContent = [...formData.content];
-                                       if (newContent[index].comprehensionQuestion) {
-                                         delete newContent[index].comprehensionQuestion;
-                                       } else {
-                                         newContent[index] = {
-                                           ...newContent[index],
-                                           comprehensionQuestion: {
-                                             question: '',
-                                             options: ['', '', '', ''],
-                                             correctAnswer: 0,
-                                             points: 10
-                                           }
-                                         };
-                                       }
-                                       setFormData(prev => ({ ...prev, content: newContent }));
-                                     }}
-                                     className="text-sm text-[#4798ea] hover:text-[#3a7bc8]"
-                                   >
-                                     {item.comprehensionQuestion ? 'Remove Question' : 'Add Question'}
-                                   </button>
-                                 </div>
-                                 
-                                 {item.comprehensionQuestion && (
-                                   <div className="space-y-3">
-                                     <div>
-                                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                                         Question
-                                       </label>
-                                       <textarea
-                                         value={item.comprehensionQuestion.question}
-                                         onChange={(e) => {
-                                           const newContent = [...formData.content];
-                                           newContent[index] = {
-                                             ...newContent[index],
-                                             comprehensionQuestion: {
-                                               ...newContent[index].comprehensionQuestion!,
-                                               question: e.target.value
-                                             }
-                                           };
-                                           setFormData(prev => ({ ...prev, content: newContent }));
-                                         }}
-                                         placeholder="Enter a comprehension question..."
-                                         rows={2}
-                                         className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
-                                       />
-                                     </div>
-                                     
-                                     <div>
-                                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                                         Options
-                                       </label>
-                                       {item.comprehensionQuestion.options.map((option, optionIndex) => (
-                                         <div key={optionIndex} className="flex items-center gap-2 mb-2">
-                                           <input
-                                             type="radio"
-                                             name={`comprehension-correct-${index}`}
-                                             checked={item.comprehensionQuestion.correctAnswer === optionIndex}
-                                             onChange={() => {
-                                               const newContent = [...formData.content];
-                                               newContent[index] = {
-                                                 ...newContent[index],
-                                                 comprehensionQuestion: {
-                                                   ...newContent[index].comprehensionQuestion!,
-                                                   correctAnswer: optionIndex
-                                                 }
-                                               };
-                                               setFormData(prev => ({ ...prev, content: newContent }));
-                                             }}
-                                             className="text-[#4798ea] focus:ring-[#4798ea]"
-                                             aria-label={`Mark option ${optionIndex + 1} as correct answer`}
-                                           />
+                                                                {(item.type === 'text' || item.type === 'video') && (
+                                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-sm font-medium text-gray-900">Comprehension Questions (Optional)</h4>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newContent = [...formData.content];
+                                        newContent[index] = {
+                                          ...newContent[index],
+                                          comprehensionQuestions: [...(newContent[index].comprehensionQuestions || []), {
+                                            question: '',
+                                            options: ['', '', '', ''],
+                                            correctAnswer: 0,
+                                            points: 10
+                                          }]
+                                        };
+                                        setFormData(prev => ({ ...prev, content: newContent }));
+                                      }}
+                                      className="text-sm text-[#4798ea] hover:text-[#3a7bc8]"
+                                    >
+                                      Add Question
+                                    </button>
+                                  </div>
+                                  
+                                  {(item.comprehensionQuestions || []).map((compQuestion, compIndex) => (
+                                    <div key={compIndex} className="space-y-3 mb-4 p-3 border border-gray-200 rounded-lg">
+                                      <div className="flex items-center justify-between">
+                                        <h5 className="text-sm font-medium text-gray-800">Question {compIndex + 1}</h5>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const newContent = [...formData.content];
+                                            newContent[index] = {
+                                              ...newContent[index],
+                                              comprehensionQuestions: newContent[index].comprehensionQuestions?.filter((_, idx) => idx !== compIndex) || []
+                                            };
+                                            setFormData(prev => ({ ...prev, content: newContent }));
+                                          }}
+                                          className="text-xs text-red-600 hover:text-red-800"
+                                        >
+                                          Remove
+                                        </button>
+                                      </div>
+                                      
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Question
+                                        </label>
+                                        <textarea
+                                          value={compQuestion.question}
+                                          onChange={(e) => {
+                                            const newContent = [...formData.content];
+                                            const newQuestions = [...(newContent[index].comprehensionQuestions || [])];
+                                            newQuestions[compIndex] = { ...newQuestions[compIndex], question: e.target.value };
+                                            newContent[index] = {
+                                              ...newContent[index],
+                                              comprehensionQuestions: newQuestions
+                                            };
+                                            setFormData(prev => ({ ...prev, content: newContent }));
+                                          }}
+                                          placeholder="Enter a comprehension question..."
+                                          rows={2}
+                                          className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                        />
+                                      </div>
+                                      
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                          Options
+                                        </label>
+                                        {compQuestion.options.map((option, optionIndex) => (
+                                          <div key={optionIndex} className="flex items-center gap-2 mb-2">
+                                            <input
+                                              type="radio"
+                                              name={`comprehension-correct-${index}-${compIndex}`}
+                                              checked={compQuestion.correctAnswer === optionIndex}
+                                              onChange={() => {
+                                                const newContent = [...formData.content];
+                                                const newQuestions = [...(newContent[index].comprehensionQuestions || [])];
+                                                newQuestions[compIndex] = { ...newQuestions[compIndex], correctAnswer: optionIndex };
+                                                newContent[index] = {
+                                                  ...newContent[index],
+                                                  comprehensionQuestions: newQuestions
+                                                };
+                                                setFormData(prev => ({ ...prev, content: newContent }));
+                                              }}
+                                              className="text-[#4798ea] focus:ring-[#4798ea]"
+                                              aria-label={`Mark option ${optionIndex + 1} as correct answer`}
+                                            />
                                                                                         <input
-                                               type="text"
-                                               value={option}
-                                               onChange={(e) => {
-                                                 const newContent = [...formData.content];
-                                                 const options = [...(newContent[index].comprehensionQuestion?.options || ['', '', '', ''])];
-                                                 options[optionIndex] = e.target.value;
-                                                 newContent[index] = {
-                                                   ...newContent[index],
-                                                   comprehensionQuestion: {
-                                                     ...newContent[index].comprehensionQuestion!,
-                                                     options
-                                                   }
-                                                 };
-                                                 setFormData(prev => ({ ...prev, content: newContent }));
-                                               }}
-                                               placeholder={`Option ${optionIndex + 1}`}
-                                               className="flex-1 px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
-                                               aria-label={`Comprehension question option ${optionIndex + 1}`}
-                                             />
-                                         </div>
-                                       ))}
-                                     </div>
-                                     
-                                     <div>
-                                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                                         Points
-                                       </label>
-                                       <input
-                                         type="number"
-                                         value={item.comprehensionQuestion.points}
-                                         onChange={(e) => {
-                                           const newContent = [...formData.content];
-                                           newContent[index] = {
-                                             ...newContent[index],
-                                             comprehensionQuestion: {
-                                               ...newContent[index].comprehensionQuestion!,
-                                               points: parseInt(e.target.value) || 10
-                                             }
-                                           };
-                                           setFormData(prev => ({ ...prev, content: newContent }));
-                                         }}
-                                         min="1"
-                                         max="100"
-                                         className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
-                                         aria-label="Comprehension question points"
-                                       />
-                                     </div>
-                                   </div>
-                                 )}
+                                              type="text"
+                                              value={option}
+                                              onChange={(e) => {
+                                                const newContent = [...formData.content];
+                                                const newQuestions = [...(newContent[index].comprehensionQuestions || [])];
+                                                const newOptions = [...(newQuestions[compIndex].options || ['', '', '', ''])];
+                                                newOptions[optionIndex] = e.target.value;
+                                                newQuestions[compIndex] = { ...newQuestions[compIndex], options: newOptions };
+                                                newContent[index] = {
+                                                  ...newContent[index],
+                                                  comprehensionQuestions: newQuestions
+                                                };
+                                                setFormData(prev => ({ ...prev, content: newContent }));
+                                              }}
+                                              placeholder={`Option ${optionIndex + 1}`}
+                                              className="flex-1 px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                              aria-label={`Comprehension question option ${optionIndex + 1}`}
+                                            />
+                                          </div>
+                                        ))}
+                                      </div>
+                                      
+                                      <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                          Points
+                                        </label>
+                                        <input
+                                          type="number"
+                                          value={compQuestion.points}
+                                          onChange={(e) => {
+                                            const newContent = [...formData.content];
+                                            const newQuestions = [...(newContent[index].comprehensionQuestions || [])];
+                                            newQuestions[compIndex] = { ...newQuestions[compIndex], points: parseInt(e.target.value) || 10 };
+                                            newContent[index] = {
+                                              ...newContent[index],
+                                              comprehensionQuestions: newQuestions
+                                            };
+                                            setFormData(prev => ({ ...prev, content: newContent }));
+                                          }}
+                                          min="1"
+                                          max="100"
+                                          className="w-full px-3 py-2 border border-[#dce0e5] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4798ea] focus:border-transparent placeholder:text-gray-600 text-gray-900"
+                                          aria-label="Comprehension question points"
+                                        />
+                                      </div>
+                                    </div>
+                                   ))}
+
                                </div>
                              )}
                            </>
                          )}
                       </div>
                     ))}
-                                         <button
-                       type="button"
-                       onClick={() => {
-                         setFormData(prev => ({
-                           ...prev,
-                           content: [...prev.content, { 
-                             type: 'text', 
-                             data: '', 
-                             order: prev.content.length + 1,
-                             quizData: {
-                               question: '',
-                               options: ['', '', '', ''],
-                               correctAnswer: 0,
-                               points: 10
-                             }
-                           }]
-                         }));
-                       }}
-                       className="w-full px-4 py-2 bg-[#4798ea] text-white rounded-lg hover:bg-[#3a7bc8] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                     >
-                       Add New Section
-                     </button>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 w-full">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              content: [...prev.content, { 
+                                type: 'text', 
+                                data: '', 
+                                order: prev.content.length + 1
+                              }]
+                            }));
+                          }}
+                          className="px-4 py-2 bg-[#4798ea] text-white rounded-lg hover:bg-[#3a7bc8] transition-colors"
+                        >
+                          + Add Text
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              content: [...prev.content, { 
+                                type: 'interactive', 
+                                data: '', 
+                                order: prev.content.length + 1
+                              }]
+                            }));
+                          }}
+                          className="px-4 py-2 bg-[#4798ea] text-white rounded-lg hover:bg-[#3a7bc8] transition-colors"
+                        >
+                          + Add Interactive
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              content: [...prev.content, { 
+                                type: 'quiz', 
+                                data: '', 
+                                order: prev.content.length + 1,
+                                quizData: {
+                                  question: '',
+                                  options: ['', '', '', ''],
+                                  correctAnswer: 0,
+                                  points: 10
+                                }
+                              }]
+                            }));
+                          }}
+                          className="px-4 py-2 bg-[#4798ea] text-white rounded-lg hover:bg-[#3a7bc8] transition-colors"
+                        >
+                          + Add Quiz
+                        </button>
+                      </div>
                   </div>
                 </div>
 
@@ -713,7 +898,7 @@ export default function AddModulePage() {
                       Videos (optional)
                     </label>
                     <p className="text-sm text-gray-700 mb-3 font-medium">
-                      Upload video content to enhance your module. Videos can include demonstrations, explanations, or interactive content.
+                      Upload video content to enhance your module. Videos will automatically appear first in the module flow, followed by text content and quizzes. Videos can include demonstrations, explanations, or interactive content.
                     </p>
                     <input
                       id="videos"

@@ -219,16 +219,17 @@ router.post('/', [
       const videoContent = videos.map((video, index) => ({
         type: 'video',
         data: video.filename,
-        order: content.length + index + 1,
+        // Ensure videos appear first in the flow, before other content
+        order: index + 1,
         videoInfo: {
           originalName: video.originalName,
           mimetype: video.mimetype,
           size: video.size
         }
       }));
-      
-      // Add video content to existing content
-      content = [...content, ...videoContent];
+
+      // Place video content before any other content to achieve "video then quiz" flow by default
+      content = [...videoContent, ...content];
     }
 
     // Parse exercises from JSON string if provided
@@ -308,6 +309,7 @@ router.put('/:id', [
       try {
         content = JSON.parse(req.body.content);
         console.log('Received content:', JSON.stringify(content, null, 2));
+        console.log('Content with comprehension questions:', content.filter(item => item.comprehensionQuestions && item.comprehensionQuestions.length > 0));
       } catch (error) {
         return res.status(400).json({ error: 'Invalid content format' });
       }
@@ -348,21 +350,20 @@ router.put('/:id', [
         mimetype: video.mimetype,
         size: video.size
       }));
-      
-      // Add video content to existing content
+
+      // Add video content and place it before other content to enforce video-first flow
       const videoContent = videos.map((video, index) => ({
         type: 'video',
         data: video.filename,
-        order: content.length + index + 1,
+        order: index + 1,
         videoInfo: {
           originalName: video.originalName,
           mimetype: video.mimetype,
           size: video.size
         }
       }));
-      
-      // Add video content to existing content
-      content = [...content, ...videoContent];
+
+      content = [...videoContent, ...content];
     }
 
     // Parse exercises from JSON string if provided
